@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	batchclient "github.com/rancher/k3s/types/apis/batch/v1"
 	coreclient "github.com/rancher/k3s/types/apis/core/v1"
@@ -325,7 +326,6 @@ func setProxyEnv(job *batch.Job) {
 		"https_proxy",
 		"HTTP_PROXY",
 		"HTTPS_PROXY",
-		"NO_PROXY",
 	}
 	for _, proxyEnv := range proxySysEnv {
 		proxyEnvValue := os.Getenv(proxyEnv)
@@ -340,4 +340,24 @@ func setProxyEnv(job *batch.Job) {
 			job.Spec.Template.Spec.Containers[0].Env,
 			envar)
 	}
+	noProxyEnv := strings.Join([]string{
+		os.Getenv("NO_PROXY"),
+		"127.0.0.1",
+		"localhost",
+		"10.0.0.0/8",
+		"172.16.0.0/16",
+		"192.168.0.0/16"}, ",")
+	no_proxy_envvar := []core.EnvVar{
+		core.EnvVar{
+			Name:  "NO_PROXY",
+			Value: noProxyEnv,
+		},
+		core.EnvVar{
+			Name:  "no_proxy",
+			Value: noProxyEnv,
+		},
+	}
+	job.Spec.Template.Spec.Containers[0].Env = append(
+		job.Spec.Template.Spec.Containers[0].Env,
+		no_proxy_envvar...)
 }
