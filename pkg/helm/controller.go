@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"sort"
+	"strings"
 
 	batchclient "github.com/rancher/k3s/types/apis/batch/v1"
 	coreclient "github.com/rancher/k3s/types/apis/core/v1"
@@ -33,7 +35,7 @@ var (
 	trueVal = true
 )
 
-func Register(ctx context.Context) error {
+func Register(ctx context.Context, clusterCIDR, serviceCIDR *net.IPNet) error {
 	k3sClients := k3s.ClientsFrom(ctx)
 	coreClients := coreclient.ClientsFrom(ctx)
 	jobClients := batchclient.ClientsFrom(ctx)
@@ -48,6 +50,8 @@ func Register(ctx context.Context) error {
 			Client(jobClients.Job).
 			Client(rbacClients.ClusterRoleBinding).
 			Patcher(batch.SchemeGroupVersion.WithKind("Job"), objectset.ReplaceOnChange),
+		clusterCIDR: clusterCIDR,
+		serviceCIDR: serviceCIDR,
 	}
 
 	k3sClients.HelmChart.OnChange(ctx, "helm", h.onChange)
@@ -74,9 +78,11 @@ func Register(ctx context.Context) error {
 }
 
 type handler struct {
-	jobCache  batchclient.JobClientCache
-	jobs      batchclient.JobClient
-	processor *objectset.Processor
+	jobCache    batchclient.JobClientCache
+	jobs        batchclient.JobClient
+	processor   *objectset.Processor
+	clusterCIDR *net.IPNet
+	serviceCIDR *net.IPNet
 }
 
 func (h *handler) onChange(chart *k3s.HelmChart) (runtime.Object, error) {
@@ -85,7 +91,7 @@ func (h *handler) onChange(chart *k3s.HelmChart) (runtime.Object, error) {
 	}
 
 	objs := objectset.NewObjectSet()
-	job, configMap := job(chart)
+	job, configMap := job(chart, h.clusterCIDR, h.serviceCIDR)
 	objs.Add(serviceAccount(chart))
 	objs.Add(roleBinding(chart))
 	objs.Add(job)
@@ -106,7 +112,7 @@ func (h *handler) onRemove(chart *k3s.HelmChart) (runtime.Object, error) {
 		return chart, nil
 	}
 
-	job, _ := job(chart)
+	job, _ := job(chart, h.clusterCIDR, h.serviceCIDR)
 
 	job, err := h.jobCache.Get(chart.Namespace, job.Name)
 	if errors.IsNotFound(err) {
@@ -125,7 +131,7 @@ func (h *handler) onRemove(chart *k3s.HelmChart) (runtime.Object, error) {
 	return chart, h.processor.NewDesiredSet(chart, objectset.NewObjectSet()).Apply()
 }
 
-func job(chart *k3s.HelmChart) (*batch.Job, *core.ConfigMap) {
+func job(chart *k3s.HelmChart, clusterCIDR, serviceCIDR *net.IPNet) (*batch.Job, *core.ConfigMap) {
 	oneThousand := int32(1000)
 	valuesHash := sha256.Sum256([]byte(chart.Spec.ValuesContent))
 
@@ -186,7 +192,7 @@ func job(chart *k3s.HelmChart) (*batch.Job, *core.ConfigMap) {
 			},
 		},
 	}
-	setProxyEnv(job)
+	setProxyEnv(job, clusterCIDR, serviceCIDR)
 	configMap := configMap(chart)
 	if configMap == nil {
 		return job, nil
@@ -319,13 +325,13 @@ func keys(val map[string]intstr.IntOrString) []string {
 	return keys
 }
 
-func setProxyEnv(job *batch.Job) {
+func setProxyEnv(job *batch.Job, clusterCIDR, serviceCIDR *net.IPNet) {
 	proxySysEnv := []string{
 		"http_proxy",
 		"https_proxy",
+
 		"HTTP_PROXY",
 		"HTTPS_PROXY",
-		"NO_PROXY",
 	}
 	for _, proxyEnv := range proxySysEnv {
 		proxyEnvValue := os.Getenv(proxyEnv)
@@ -340,4 +346,22 @@ func setProxyEnv(job *batch.Job) {
 			job.Spec.Template.Spec.Containers[0].Env,
 			envar)
 	}
+
+	noProxyEnv := strings.Join([]string{
+		os.Getenv("NO_PROXY"),
+		clusterCIDR.String(),
+		serviceCIDR.String()}, ",")
+	noProxyEnvvar := []core.EnvVar{
+		core.EnvVar{
+			Name:  "NO_PROXY",
+			Value: noProxyEnv,
+		},
+		core.EnvVar{
+			Name:  "no_proxy",
+			Value: noProxyEnv,
+		},
+	}
+	job.Spec.Template.Spec.Containers[0].Env = append(
+		job.Spec.Template.Spec.Containers[0].Env,
+		noProxyEnvvar...)
 }

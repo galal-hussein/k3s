@@ -114,7 +114,9 @@ func startNorman(ctx context.Context, config *Config) (string, error) {
 		DisableLeaderElection: true,
 		MasterControllers: []norman.ControllerRegister{
 			node.Register,
-			helm.Register,
+			func(ctx context.Context) error {
+				return helm.Register(ctx, config.ControlConfig.ClusterIPRange, config.ControlConfig.ServiceIPRange)
+			},
 			func(ctx context.Context) error {
 				return servicelb.Register(ctx, norman.GetServer(ctx).K8sClient, !config.DisableServiceLB,
 					config.Rootless)
