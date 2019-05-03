@@ -63,6 +63,14 @@ func Run(ctx context.Context, cfg *config.Node) error {
 	go func() {
 		logrus.Infof("Running containerd %s", config.ArgString(args[1:]))
 		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Env = []string{
+			"HTTP_PROXY=" + os.Getenv("HTTP_PROXY"),
+			"HTTPS_PROXY=" + os.Getenv("HTTPS_PROXY"),
+			"http_proxy=" + os.Getenv("http_proxy"),
+			"https_proxy=" + os.Getenv("https_proxy"),
+			"no_proxy=" + os.Getenv("no_proxy"),
+			"NO_PROXY=" + os.Getenv("NO_PROXY"),
+		}
 		cmd.Stdout = stdOut
 		cmd.Stderr = stdErr
 		cmd.SysProcAttr = &syscall.SysProcAttr{

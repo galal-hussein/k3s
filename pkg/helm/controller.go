@@ -187,7 +187,7 @@ func job(chart *k3s.HelmChart) (*batch.Job, *core.ConfigMap) {
 			},
 		},
 	}
-	setProxyEnv(job)
+	//setProxyEnv(job)
 	configMap := configMap(chart)
 	if configMap == nil {
 		return job, nil
@@ -324,6 +324,7 @@ func setProxyEnv(job *batch.Job) {
 	proxySysEnv := []string{
 		"http_proxy",
 		"https_proxy",
+
 		"HTTP_PROXY",
 		"HTTPS_PROXY",
 	}
