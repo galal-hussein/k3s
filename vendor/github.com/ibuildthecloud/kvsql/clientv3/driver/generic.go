@@ -15,6 +15,9 @@ import (
 )
 
 type Generic struct {
+	// revision must be first to ensure that this is properly aligned for atomic.LoadInt64
+	revision int64
+
 	db *sql.DB
 
 	CleanupSQL      string
@@ -27,7 +30,6 @@ type Generic struct {
 	GetRevisionSQL  string
 	ToDeleteSQL     string
 	DeleteOldSQL    string
-	revision        int64
 
 	changes     chan *KeyValue
 	broadcaster broadcast.Broadcaster
@@ -62,7 +64,7 @@ func (g *Generic) Start(ctx context.Context, db *sql.DB) error {
 
 				err = g.cleanup(ctx)
 				if err != nil {
-					logrus.Errorf("Failed to cleanup duplicate entries")
+					logrus.Errorf("Failed to cleanup duplicate entries: %v", err)
 				}
 			}
 		}
@@ -147,7 +149,7 @@ func (g *Generic) List(ctx context.Context, revision, limit int64, rangeKey, sta
 
 	listRevision := atomic.LoadInt64(&g.revision)
 	if !strings.HasSuffix(rangeKey, "%") && revision <= 0 {
-		rows, err = g.QueryContext(ctx, g.GetSQL, rangeKey, limit)
+		rows, err = g.QueryContext(ctx, g.GetSQL, rangeKey, 1)
 	} else if revision <= 0 {
 		rows, err = g.QueryContext(ctx, g.ListSQL, rangeKey, limit)
 	} else if len(startKey) > 0 {
@@ -207,14 +209,12 @@ func (g *Generic) Update(ctx context.Context, key string, value []byte, revision
 func (g *Generic) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	trace := utiltrace.New(fmt.Sprintf("SQL DB ExecContext query: %s keys: %v", query, args))
 	defer trace.LogIfLong(500 * time.Millisecond)
-
 	return g.db.ExecContext(ctx, query, args...)
 }
 
 func (g *Generic) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	trace := utiltrace.New(fmt.Sprintf("SQL DB QueryContext query: %s keys: %v", query, args))
 	defer trace.LogIfLong(500 * time.Millisecond)
-
 	return g.db.QueryContext(ctx, query, args...)
 }
 
