@@ -39,6 +39,11 @@ import (
 	_ "k8s.io/kubernetes/pkg/version/prometheus"        // for version metric registration
 )
 
+const (
+	ETCDBackend  = "etcd3"
+	KVSQLBackend = "kvsql"
+)
+
 var (
 	localhostIP        = net.ParseIP("127.0.0.1")
 	x509KeyServerOnly  = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
@@ -146,6 +151,8 @@ func scheduler(cfg *config.Control, runtime *config.ControlRuntime) {
 
 func apiServer(ctx context.Context, cfg *config.Control, runtime *config.ControlRuntime) (authenticator.Request, http.Handler, error) {
 	argsMap := make(map[string]string)
+
+	setupStorageBackend(argsMap, cfg)
 	if len(cfg.StorageEndpoint) > 0 {
 		argsMap["etcd-servers"] = cfg.StorageEndpoint
 	}
@@ -598,4 +605,27 @@ func kubeConfig(dest, url, cert, user, password string) error {
 	defer output.Close()
 
 	return kubeconfigTemplate.Execute(output, &data)
+}
+
+func setupStorageBackend(argsMap map[string]string, cfg *config.Control) {
+	// setup the storage backend
+	switch cfg.StorageBackend {
+	case ETCDBackend:
+		argsMap["storage-backend"] = ETCDBackend
+	default:
+		argsMap["storage-backend"] = KVSQLBackend
+	}
+	// specify the endpoints
+	if len(cfg.StorageEndpoint) > 0 {
+		argsMap["etcd-servers"] = cfg.StorageEndpoint
+	}
+	// storage backend tls configuration
+	if len(cfg.StorageCAFile) > 0 {
+		argsMap["etcd-cafile"] = cfg.StorageCAFile
+	}
+	if len(cfg.StorageCertFile) > 0 {
+		argsMap["etcd-certfile"] = cfg.StorageCertFile
+	}if len(cfg.StorageKeyFile) > 0 {
+		argsMap["etcd-keyfile"] = cfg.StorageKeyFile
+	}
 }
