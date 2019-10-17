@@ -1,4 +1,4 @@
-%{ if local.prom_worker_node_count != 0 }
+%{ if prom_worker_node_count != 0 }
 ---
 apiVersion: v1
 kind: Namespace

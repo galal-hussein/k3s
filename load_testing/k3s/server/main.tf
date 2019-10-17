@@ -8,7 +8,7 @@ locals {
   name                   = "k3s-load-server"
   node_count             = 1
   k3s_cluster_secret     = "pvc-6476dcaf-73a0-11e9-b8e5-06943b744282"
-  install_k3s_version    = "v0.9.0-rc2"
+  install_k3s_version    = "v0.10.0-alpha1"
   prom_worker_node_count = 0
   worker_node_count      = 0
 }
@@ -16,6 +16,8 @@ locals {
 provider "aws" {
   region  = "us-west-2"
   profile = "rancher-eng"
+  access_key = "${var.aws_access_key}"
+  secret_key = "${var.aws_secret_key}"
 }
 
 resource "aws_eip" "k3s-server" {
@@ -61,6 +63,18 @@ resource "aws_security_group" "k3s" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+resource "aws_db_instance" "k3s_db" {
+  count                = "${var.k3s_ha}"
+  allocated_storage    = 100
+  storage_type         = "gp2"
+  engine               = "postgres"
+  engine_version       = "11.5"
+  instance_class       = "${var.db_instance_type}"
+  name                 = "k3s_db"
+  username             = "postgres"
+  password             = "postgresk3s"
 }
 
 module "k3s-server-asg" {
