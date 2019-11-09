@@ -16,6 +16,7 @@ type SQLLog struct {
 	broadcaster broadcaster.Broadcaster
 	ctx         context.Context
 	notify      chan int64
+	pollStart   int64
 }
 
 func New(d Dialect) *SQLLog {
@@ -41,10 +42,11 @@ type Dialect interface {
 	IsFill(key string) bool
 }
 
-func (s *SQLLog) Start(ctx context.Context) error {
+func (s *SQLLog) Start(ctx context.Context) (err error) {
 	s.ctx = ctx
 	go s.compact()
-	return nil
+	s.pollStart, err = s.CurrentRevision(ctx)
+	return
 }
 
 func (s *SQLLog) compact() {
@@ -273,7 +275,7 @@ func (s *SQLLog) startWatch() (chan interface{}, error) {
 
 func (s *SQLLog) poll(result chan interface{}) {
 	var (
-		last     int64
+		last     = s.pollStart
 		skip     int64
 		skipTime time.Time
 	)
@@ -291,15 +293,6 @@ func (s *SQLLog) poll(result chan interface{}) {
 				continue
 			}
 		case <-wait.C:
-		}
-
-		if last == 0 {
-			if currentRev, err := s.CurrentRevision(s.ctx); err != nil {
-				logrus.Errorf("failed to find current revision: %v", err)
-				continue
-			} else {
-				last = currentRev
-			}
 		}
 
 		rows, err := s.d.After(s.ctx, "%", last)
