@@ -15,7 +15,7 @@ const (
 
 func getNodeArgs(nodeName string) (string,error) {
 	nodeArgsList := []string{}
-	for i, arg := range os.Args[1:] {
+	for _, arg := range os.Args[1:] {
 		if isSecret(arg) {
 			nodeArgsList = append(nodeArgsList, "")
 		} else {
@@ -37,7 +37,7 @@ func getNodeEnv(nodeName string) (string, error) {
 			k3sEnv[keyValue[0]] = keyValue[1]
 		}
 	}
-	for key, value := range k3sEnv {
+	for key := range k3sEnv {
 		if isSecret(key) {
 			k3sEnv[key] = ""
 		}
