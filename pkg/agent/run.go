@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"github.com/rancher/k3s/pkg/nodeconfig"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -72,6 +73,10 @@ func run(ctx context.Context, cfg cmds.Agent, lb *loadbalancer.LoadBalancer) err
 	}
 
 	if err := syncLabels(ctx, &nodeConfig.AgentConfig, coreClient.CoreV1().Nodes()); err != nil {
+		return err
+	}
+
+	if err := setNodeConfigAnnotations(ctx, &nodeConfig.AgentConfig, coreClient.CoreV1().Nodes()); err != nil {
 		return err
 	}
 
@@ -223,4 +228,31 @@ func updateAddressLabels(agentConfig *daemonconfig.Agent, nodeLabels map[string]
 
 	result = labels.Merge(nodeLabels, result)
 	return result, !equality.Semantic.DeepEqual(nodeLabels, result)
+}
+
+func setNodeConfigAnnotations(ctx context.Context,  agentConfig *daemonconfig.Agent, nodes v1.NodeInterface) error {
+	for {
+		node, err := nodes.Get(agentConfig.NodeName, metav1.GetOptions{})
+		if err != nil {
+			logrus.Infof("Waiting for kubelet to be ready on node %s: %v", agentConfig.NodeName, err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		if err := nodeconfig.SetNodeConfigAnnotations(node); err != nil {
+			return err
+		}
+		if _, err := nodes.Update(node); err != nil {
+			logrus.Infof("Failed to update node %s: %v", agentConfig.NodeName, err)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Second):
+				continue
+			}
+		}
+		logrus.Infof("node annotations have been set successfully on node: %s", agentConfig.NodeName)
+		break
+	}
+	return nil
 }
