@@ -2,7 +2,6 @@ package nodeconfig
 
 import (
 	"encoding/json"
-	"expvar"
 	"github.com/pkg/errors"
 	"os"
 	"strings"
@@ -86,7 +85,7 @@ func isSecret(key string) bool {
 		"cluster-secret",
 	}
 	for _, secret := range secretData {
-		if strings.contains(key, secret) {
+		if strings.Contains(key, secret) {
 			return true
 		}
 	}
