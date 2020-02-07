@@ -38,7 +38,7 @@ func getNodeEnv(nodeName string) (string, error) {
 			k3sEnv[keyValue[0]] = keyValue[1]
 		}
 	}
-	for key, value := range keyValue {
+	for key, value := range k3sEnv {
 		if isSecret(key) {
 			k3sEnv[key] = ""
 		}
