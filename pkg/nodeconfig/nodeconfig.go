@@ -16,10 +16,16 @@ const (
 func getNodeArgs(nodeName string) (string,error) {
 	nodeArgsList := []string{}
 	for _, arg := range os.Args[1:] {
+		if strings.Contains(arg, "=") {
+			parsedArg := strings.SplitN(arg, "=", 2)
+			nodeArgsList = append(nodeArgsList, parsedArg...)
+			continue
+		}
+		nodeArgsList = append(nodeArgsList, arg)
+	}
+	for i, arg := range nodeArgsList {
 		if isSecret(arg) {
-			nodeArgsList = append(nodeArgsList, "")
-		} else {
-			nodeArgsList = append(nodeArgsList, arg)
+			nodeArgsList[i+1] = ""
 		}
 	}
 	nodeArgs, err := json.Marshal(nodeArgsList)
