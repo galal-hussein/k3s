@@ -2,6 +2,7 @@ package nodeconfig
 
 import (
 	"encoding/json"
+	"expvar"
 	"github.com/pkg/errors"
 	"os"
 	"strings"
@@ -14,7 +15,15 @@ const (
 )
 
 func getNodeArgs(nodeName string) (string,error) {
-	nodeArgs, err := json.Marshal(os.Args[1:])
+	nodeArgsList := []string{}
+	for i, arg := range os.Args[1:] {
+		if isSecret(arg) {
+			nodeArgsList = append(nodeArgsList, "")
+		} else {
+			nodeArgsList = append(nodeArgsList, arg)
+		}
+	}
+	nodeArgs, err := json.Marshal(nodeArgsList)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to retrieve argument list for node %s", nodeName)
 	}
@@ -27,6 +36,11 @@ func getNodeEnv(nodeName string) (string, error) {
 		keyValue := strings.SplitN(v, "=", 2)
 		if strings.HasPrefix(keyValue[0], "K3S_") {
 			k3sEnv[keyValue[0]] = keyValue[1]
+		}
+	}
+	for key, value := range keyValue {
+		if isSecret(key) {
+			k3sEnv[key] = ""
 		}
 	}
 	k3sEnvJson, err := json.Marshal(k3sEnv)
@@ -58,4 +72,23 @@ func SetNodeConfigAnnotations(node *corev1.Node) error {
 	node.Annotations[NodeEnvAnnotation] = nodeEnv
 	node.Annotations[NodeArgsAnnotation] = nodeArgs
 	return nil
+}
+
+func isSecret(key string) bool {
+	secretData := []string{
+		"K3S_TOKEN",
+		"K3S_DATASTORE_",
+		"K3S_AGENT_TOKEN",
+		"K3S_CLUSTER_SECRET",
+		"token",
+		"agent-token",
+		"datastore-",
+		"cluster-secret",
+	}
+	for _, secret := range secretData {
+		if strings.contains(key, secret) {
+			return true
+		}
+	}
+	return false
 }
