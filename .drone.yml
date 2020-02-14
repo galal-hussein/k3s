@@ -251,6 +251,37 @@ volumes:
 
 ---
 kind: pipeline
+name: dispatch
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: dispatch
+    image: rancher/dapper:v0.4.2
+    environment:
+      PAT_USERNAME:
+        from_secret: pat_username
+      PAT_TOKEN:
+        from_secret: pat_token
+    commands:
+      - dapper dispatch
+    when:
+      instance:
+        - drone-publish.rancher.io
+      ref:
+        - refs/head/master
+        - refs/tags/*
+      event:
+        - tag
+
+depends_on:
+  - amd64
+  - arm64
+  - arm
+---
+kind: pipeline
 name: manifest
 
 platform:
