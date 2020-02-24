@@ -267,6 +267,9 @@ steps:
         from_secret: pat_token
     commands:
       - dapper dispatch
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
     when:
       instance:
         - drone-publish.rancher.io
