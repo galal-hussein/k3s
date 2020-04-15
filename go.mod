@@ -57,6 +57,7 @@ replace (
 	k8s.io/sample-cli-plugin => github.com/rancher/kubernetes/staging/src/k8s.io/sample-cli-plugin v1.17.4-k3s1
 	k8s.io/sample-controller => github.com/rancher/kubernetes/staging/src/k8s.io/sample-controller v1.17.4-k3s1
 	mvdan.cc/unparam => mvdan.cc/unparam v0.0.0-20190209190245-fbb59629db34
+	github.com/rancher/kine => github.com/galal-hussein/kine v0.0.0-20200412205117-27e128c1f441
 )
 
 require (
