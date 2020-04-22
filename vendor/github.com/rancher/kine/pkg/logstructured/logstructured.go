@@ -2,9 +2,11 @@ package logstructured
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/rancher/kine/pkg/server"
 	"github.com/sirupsen/logrus"
-	"sync"
 )
 
 type Log interface {
@@ -292,22 +294,20 @@ func (l *LogStructured) ttlEvents(ctx context.Context) chan *server.Event {
 }
 
 func (l *LogStructured) ttl(ctx context.Context) {
-	logrus.Debug("ttl removed by hussein")
-	return
-	//// vary naive TTL support
-	//mutex := &sync.Mutex{}
-	//for event := range l.ttlEvents(ctx) {
-	//	go func(event *server.Event) {
-	//		select {
-	//		case <-ctx.Done():
-	//			return
-	//		case <-time.After(time.Duration(event.KV.Lease) * time.Second):
-	//		}
-	//		mutex.Lock()
-	//		l.Delete(ctx, event.KV.Key, event.KV.ModRevision)
-	//		mutex.Unlock()
-	//	}(event)
-	//}
+	// vary naive TTL support
+	mutex := &sync.Mutex{}
+	for event := range l.ttlEvents(ctx) {
+		go func(event *server.Event) {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Duration(event.KV.Lease) * time.Second):
+			}
+			mutex.Lock()
+			l.Delete(ctx, event.KV.Key, event.KV.ModRevision)
+			mutex.Unlock()
+		}(event)
+	}
 }
 
 func (l *LogStructured) Watch(ctx context.Context, prefix string, revision int64) <-chan []*server.Event {
