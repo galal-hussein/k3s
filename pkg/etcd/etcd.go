@@ -428,12 +428,14 @@ func (e *ETCD) promoteMember(ctx context.Context, clientAccessInfo *clientaccess
 	if err != nil {
 		return err
 	}
+	memberPromoted := true
 	t := time.NewTicker(5 * time.Second)
 	defer t.Stop()
 	for range t.C {
 		client, err := joinClient(ctx, e.runtime, clientURLs)
+		// continue on errors to keep trying to promote member
 		if err != nil {
-			return err
+			continue
 		}
 		members, err := client.MemberList(ctx)
 		if err != nil {
@@ -445,10 +447,13 @@ func (e *ETCD) promoteMember(ctx context.Context, clientAccessInfo *clientaccess
 				continue
 			}
 			if _, err := client.MemberPromote(ctx, member.ID); err != nil {
-				return err
+				memberPromoted = false
+				break
 			}
 		}
-		break
+		if memberPromoted {
+			break
+		}
 	}
 	return nil
 }
