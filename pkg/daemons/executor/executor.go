@@ -40,6 +40,7 @@ type ETCDConfig struct {
 	ForceNewCluster     bool        `json:"force-new-cluster,omitempty"`
 	HeartbeatInterval   int         `json:"heartbeat-interval"`
 	ElectionTimeout     int         `json:"election-timeout"`
+	Logger              string      `json:"logger"`
 }
 
 type ServerTrust struct {
