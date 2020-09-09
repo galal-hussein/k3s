@@ -30,8 +30,9 @@ import (
 var (
 	// chanBufLen is the length of the buffered chan
 	// for sending out watched events.
-	// See https://github.com/etcd-io/etcd/issues/11906 for more detail.
-	chanBufLen = 128
+	// TODO: find a good buf value. 1024 is just a random one that
+	// seems to be reasonable.
+	chanBufLen = 1024
 
 	// maxWatchersPerSync is the number of watchers to sync in a single batch
 	maxWatchersPerSync = 512

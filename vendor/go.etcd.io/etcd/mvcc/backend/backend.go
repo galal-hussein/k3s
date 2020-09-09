@@ -123,8 +123,6 @@ type BackendConfig struct {
 	MmapSize uint64
 	// Logger logs backend-side operations.
 	Logger *zap.Logger
-	// UnsafeNoFsync disables all uses of fsync.
-	UnsafeNoFsync bool `json:"unsafe-no-fsync"`
 }
 
 func DefaultBackendConfig() BackendConfig {
@@ -152,8 +150,6 @@ func newBackend(bcfg BackendConfig) *backend {
 	}
 	bopts.InitialMmapSize = bcfg.mmapSize()
 	bopts.FreelistType = bcfg.BackendFreelistType
-	bopts.NoSync = bcfg.UnsafeNoFsync
-	bopts.NoGrowSync = bcfg.UnsafeNoFsync
 
 	db, err := bolt.Open(bcfg.Path, 0600, bopts)
 	if err != nil {

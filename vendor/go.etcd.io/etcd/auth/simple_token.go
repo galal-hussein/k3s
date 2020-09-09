@@ -37,7 +37,7 @@ const (
 
 // var for testing purposes
 var (
-	simpleTokenTTLDefault    = 300 * time.Second
+	simpleTokenTTL           = 5 * time.Minute
 	simpleTokenTTLResolution = 1 * time.Second
 )
 
@@ -47,7 +47,6 @@ type simpleTokenTTLKeeper struct {
 	stopc           chan struct{}
 	deleteTokenFunc func(string)
 	mu              *sync.Mutex
-	simpleTokenTTL  time.Duration
 }
 
 func (tm *simpleTokenTTLKeeper) stop() {
@@ -59,12 +58,12 @@ func (tm *simpleTokenTTLKeeper) stop() {
 }
 
 func (tm *simpleTokenTTLKeeper) addSimpleToken(token string) {
-	tm.tokens[token] = time.Now().Add(tm.simpleTokenTTL)
+	tm.tokens[token] = time.Now().Add(simpleTokenTTL)
 }
 
 func (tm *simpleTokenTTLKeeper) resetSimpleToken(token string) {
 	if _, ok := tm.tokens[token]; ok {
-		tm.tokens[token] = time.Now().Add(tm.simpleTokenTTL)
+		tm.tokens[token] = time.Now().Add(simpleTokenTTL)
 	}
 }
 
@@ -102,7 +101,6 @@ type tokenSimple struct {
 	simpleTokenKeeper *simpleTokenTTLKeeper
 	simpleTokensMu    sync.Mutex
 	simpleTokens      map[string]string // token -> username
-	simpleTokenTTL    time.Duration
 }
 
 func (t *tokenSimple) genTokenPrefix() (string, error) {
@@ -159,10 +157,6 @@ func (t *tokenSimple) invalidateUser(username string) {
 }
 
 func (t *tokenSimple) enable() {
-	if t.simpleTokenTTL <= 0 {
-		t.simpleTokenTTL = simpleTokenTTLDefault
-	}
-
 	delf := func(tk string) {
 		if username, ok := t.simpleTokens[tk]; ok {
 			if t.lg != nil {
@@ -183,7 +177,6 @@ func (t *tokenSimple) enable() {
 		stopc:           make(chan struct{}),
 		deleteTokenFunc: delf,
 		mu:              &t.simpleTokensMu,
-		simpleTokenTTL:  t.simpleTokenTTL,
 	}
 	go t.simpleTokenKeeper.run()
 }
@@ -241,14 +234,10 @@ func (t *tokenSimple) isValidSimpleToken(ctx context.Context, token string) bool
 	return false
 }
 
-func newTokenProviderSimple(lg *zap.Logger, indexWaiter func(uint64) <-chan struct{}, TokenTTL time.Duration) *tokenSimple {
-	if lg == nil {
-		lg = zap.NewNop()
-	}
+func newTokenProviderSimple(lg *zap.Logger, indexWaiter func(uint64) <-chan struct{}) *tokenSimple {
 	return &tokenSimple{
-		lg:             lg,
-		simpleTokens:   make(map[string]string),
-		indexWaiter:    indexWaiter,
-		simpleTokenTTL: TokenTTL,
+		lg:           lg,
+		simpleTokens: make(map[string]string),
+		indexWaiter:  indexWaiter,
 	}
 }

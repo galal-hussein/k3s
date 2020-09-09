@@ -553,7 +553,6 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 		func(index uint64) <-chan struct{} {
 			return srv.applyWait.Wait(index)
 		},
-		time.Duration(cfg.TokenTTL)*time.Second,
 	)
 	if err != nil {
 		if cfg.Logger != nil {
