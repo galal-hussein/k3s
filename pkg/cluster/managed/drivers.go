@@ -19,7 +19,7 @@ type Driver interface {
 	Register(ctx context.Context, config *config.Control, l net.Listener, handler http.Handler) (net.Listener, http.Handler, error)
 	Reset(ctx context.Context, clientAccessInfo *clientaccess.Info) error
 	Start(ctx context.Context, clientAccessInfo *clientaccess.Info) error
-	Test(ctx context.Context, clientAccessInfo *clientaccess.Info) error
+	Test(ctx context.Context, clientAccessInfo *clientaccess.Info, skipLearner bool) error
 	Restore(ctx context.Context) error
 	EndpointName() string
 }
