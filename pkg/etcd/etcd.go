@@ -66,17 +66,19 @@ func (e *ETCD) EndpointName() string {
 	return "etcd"
 }
 
-func (e *ETCD) Test(ctx context.Context, clientAccessInfo *clientaccess.Info) error {
+func (e *ETCD) Test(ctx context.Context, clientAccessInfo *clientaccess.Info, skipLearnerCheck bool) error {
 	ctx, cancel := context.WithTimeout(ctx, testTimeout)
 	defer cancel()
-	status, err := e.client.Status(ctx, endpoint)
-	if err != nil {
-		return err
-	}
-
-	if status.IsLearner {
-		if err := e.promoteMember(ctx, clientAccessInfo); err != nil {
+	if !skipLearnerCheck {
+		status, err := e.client.Status(ctx, endpoint)
+		if err != nil {
 			return err
+		}
+
+		if status.IsLearner {
+			if err := e.promoteMember(ctx, clientAccessInfo); err != nil {
+				return err
+			}
 		}
 	}
 	members, err := e.client.MemberList(ctx)
@@ -127,12 +129,14 @@ func (e *ETCD) Reset(ctx context.Context, clientAccessInfo *clientaccess.Info) e
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
 		for range t.C {
-			if err := e.Test(ctx, clientAccessInfo); err == nil {
+			fmt.Println("test etcd")
+			if err := e.Test(ctx, clientAccessInfo, true); err == nil {
+				fmt.Println("err is nil")
 				members, err := e.client.MemberList(ctx)
 				if err != nil {
 					continue
 				}
-
+				fmt.Println("members", members)
 				if len(members.Members) == 1 && members.Members[0].Name == e.name {
 					logrus.Infof("etcd is running, restart without --cluster-reset flag now. Backup and delete ${datadir}/server/db on each peer etcd server and rejoin the nodes")
 					os.Exit(0)
@@ -141,6 +145,7 @@ func (e *ETCD) Reset(ctx context.Context, clientAccessInfo *clientaccess.Info) e
 		}
 	}()
 	if e.config.ClusterResetRestorePath != "" {
+		fmt.Println("restore path")
 		info, err := os.Stat(e.config.ClusterResetRestorePath)
 		if os.IsNotExist(err) {
 			return fmt.Errorf("etcd: snapshot path does not exist: %s", e.config.ClusterResetRestorePath)
@@ -148,8 +153,10 @@ func (e *ETCD) Reset(ctx context.Context, clientAccessInfo *clientaccess.Info) e
 		if info.IsDir() {
 			return fmt.Errorf("etcd: snapshot path is directory: %s", e.config.ClusterResetRestorePath)
 		}
+		fmt.Println("restoring")
 		return e.Restore(ctx)
 	}
+	fmt.Println("new cluster force")
 	return e.newCluster(ctx, true)
 }
 
@@ -393,6 +400,7 @@ func getAdvertiseAddress(advertiseIP string) (string, error) {
 }
 
 func (e *ETCD) newCluster(ctx context.Context, reset bool) error {
+	fmt.Println(e.config)
 	return e.cluster(ctx, reset, executor.InitialOptions{
 		AdvertisePeerURL: fmt.Sprintf("https://%s:2380", e.address),
 		Cluster:          fmt.Sprintf("%s=https://%s:2380", e.name, e.address),
