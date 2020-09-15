@@ -86,7 +86,7 @@ func Setup(ctx context.Context, config *config.Node, proxy proxy.Proxy) error {
 			disconnect[address] = connect(ctx, wg, address, tlsConfig)
 		}
 	}
-
+	fmt.Println("hgalaaaaaaaaaaaaaaz logs", proxy.SupervisorAddresses())
 	go func() {
 	connect:
 		for {
@@ -115,8 +115,10 @@ func Setup(ctx context.Context, config *config.Node, proxy proxy.Proxy) error {
 						logrus.Errorf("Tunnel could not case event object to endpoint: %v", ev)
 						continue watching
 					}
-
+					fmt.Println("hgalalazzzzzz logs 2: ", endpoint)
+					fmt.Println("hgalalazzzzzz logs 3: ", proxy.SupervisorAddresses())
 					newAddresses := getAddresses(endpoint)
+					fmt.Println("hgalalazzzzzz logs 4: ", newAddresses)
 					if reflect.DeepEqual(newAddresses, proxy.SupervisorAddresses()) {
 						continue watching
 					}
