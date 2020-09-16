@@ -93,7 +93,7 @@ func Setup(ctx context.Context, config *config.Node, proxy proxy.Proxy) error {
 			time.Sleep(5 * time.Second)
 			watch, err := client.CoreV1().Endpoints("default").Watch(ctx, metav1.ListOptions{
 				FieldSelector:   fields.Set{"metadata.name": "kubernetes"}.String(),
-				ResourceVersion: "0",
+				//ResourceVersion: "0", commenting to see if it will get the latest
 			})
 			if err != nil {
 				logrus.Errorf("Unable to watch for tunnel endpoints: %v", err)
