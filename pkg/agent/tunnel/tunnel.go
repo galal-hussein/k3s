@@ -91,6 +91,8 @@ func Setup(ctx context.Context, config *config.Node, proxy proxy.Proxy) error {
 	connect:
 		for {
 			time.Sleep(5 * time.Second)
+			endpoint,_ := client.CoreV1().Endpoints("default").Get(ctx, "kubernetes", metav1.GetOptions{})
+			fmt.Println("hgalaaaaaz logggggggs:", endpoint)
 			watch, err := client.CoreV1().Endpoints("default").Watch(ctx, metav1.ListOptions{
 				FieldSelector:   fields.Set{"metadata.name": "kubernetes"}.String(),
 				//ResourceVersion: "0", commenting to see if it will get the latest
