@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/rancher/k3s/pkg/agent/containerd"
 	"io/ioutil"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"net"
 	"net/http"
 	"net/url"
@@ -38,6 +40,7 @@ type ETCD struct {
 	runtime *config.ControlRuntime
 	address string
 	cron    *cron.Cron
+	nodeConfig *config.Node
 }
 
 // NewETCD creates a new value of type
@@ -150,7 +153,11 @@ func (e *ETCD) Reset(ctx context.Context, clientAccessInfo *clientaccess.Info) e
 		}
 		return e.Restore(ctx)
 	}
-	return e.newCluster(ctx, true)
+	if err := e.newCluster(ctx, true); err != nil {
+		return err
+	}
+	// restart components
+	return restartComponents(ctx)
 }
 
 func (e *ETCD) Start(ctx context.Context, clientAccessInfo *clientaccess.Info) error {
@@ -644,4 +651,35 @@ func snapshotRetention(retention int, snapshotDir string) error {
 		return snapshotFiles[i].Name() < snapshotFiles[j].Name()
 	})
 	return os.Remove(filepath.Join(snapshotDir, snapshotFiles[0].Name()))
+}
+
+func restartComponents(ctx context.Context) error {
+	// restarting containers sandboxes of kubernetes components
+	// that includes: kubeapi, controller, scheduler, kubeproxy,
+	// and network pods
+	conn, err := containerd.CriConnection(ctx, "/run/k3s/containerd/containerd.sock")
+	if err != nil {
+		return err
+	}
+	c := runtimeapi.NewRuntimeServiceClient(conn)
+
+	controlPods, err := c.ListPodSandbox(ctx, &runtimeapi.ListPodSandboxRequest{
+		Filter: &runtimeapi.PodSandboxFilter{
+			LabelSelector:        map[string]string{
+				"tier": "control-plane",
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	for _, pod := range controlPods.Items {
+		if _, err := c.StopPodSandbox(ctx, &runtimeapi.StopPodSandboxRequest{
+			PodSandboxId:         pod.Id,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

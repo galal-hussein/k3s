@@ -209,6 +209,8 @@ type ControlRuntime struct {
 	ClientETCDCert           string
 	ClientETCDKey            string
 
+	containerRuntimeAddress  string
+
 	Core *core.Factory
 }
 
