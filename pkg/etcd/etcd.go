@@ -657,29 +657,32 @@ func restartComponents(ctx context.Context) error {
 	// restarting containers sandboxes of kubernetes components
 	// that includes: kubeapi, controller, scheduler, kubeproxy,
 	// and network pods
-	conn, err := containerd.CriConnection(ctx, "/run/k3s/containerd/containerd.sock")
-	if err != nil {
-		return err
-	}
-	c := runtimeapi.NewRuntimeServiceClient(conn)
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+	for range t.C {
+		conn, err := containerd.CriConnection(ctx, "/run/k3s/containerd/containerd.sock")
+		if err != nil {
+			continue
+		}
+		c := runtimeapi.NewRuntimeServiceClient(conn)
 
-	controlPods, err := c.ListPodSandbox(ctx, &runtimeapi.ListPodSandboxRequest{
-		Filter: &runtimeapi.PodSandboxFilter{
-			LabelSelector:        map[string]string{
-				"tier": "control-plane",
+		controlPods, err := c.ListPodSandbox(ctx, &runtimeapi.ListPodSandboxRequest{
+			Filter: &runtimeapi.PodSandboxFilter{
+				LabelSelector:        map[string]string{
+					"tier": "control-plane",
+				},
 			},
-		},
-	})
-	if err != nil {
-		return err
-	}
-	for _, pod := range controlPods.Items {
-		if _, err := c.StopPodSandbox(ctx, &runtimeapi.StopPodSandboxRequest{
-			PodSandboxId:         pod.Id,
-		}); err != nil {
-			return err
+		})
+		if err != nil {
+			continue
+		}
+		for _, pod := range controlPods.Items {
+			if _, err := c.StopPodSandbox(ctx, &runtimeapi.StopPodSandboxRequest{
+				PodSandboxId:         pod.Id,
+			}); err != nil {
+				continue
+			}
 		}
 	}
-
 	return nil
 }
