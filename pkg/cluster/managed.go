@@ -55,6 +55,7 @@ func (c *Cluster) start(ctx context.Context) error {
 	if c.managedDB == nil {
 		return nil
 	}
+	fmt.Println("hgalal.........etcd managed 1")
 
 	if c.config.ClusterReset {
 		if _, err := os.Stat(resetFile); err != nil {
@@ -68,7 +69,7 @@ func (c *Cluster) start(ctx context.Context) error {
 		}
 		return c.managedDB.Reset(ctx, c.clientAccessInfo)
 	}
-	
+	fmt.Println("hgalal.........etcd managed")
 	// removing the reset file and ignore error if the file doesnt exist
 	os.Remove(resetFile)
 
