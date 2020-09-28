@@ -52,6 +52,7 @@ func (c *Cluster) testClusterDB(ctx context.Context) (<-chan struct{}, error) {
 // it does that instead.
 func (c *Cluster) start(ctx context.Context) error {
 	resetFile := filepath.Join(c.config.DataDir, "db", "reset-flag")
+	fmt.Println("hhhhhhhhhhhh", c.managedDB)
 	if c.managedDB == nil {
 		return nil
 	}
