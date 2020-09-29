@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"github.com/rancher/k3s/pkg/version"
 	"net/http"
-	"strings"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/rancher/k3s/pkg/cluster/managed"
@@ -61,12 +61,14 @@ func (c *Cluster) start(ctx context.Context) error {
 	if c.config.ClusterReset {
 		if _, err := os.Stat(resetFile); err != nil {
 			if !os.IsNotExist(err) {
-				return fmt.Errorf("cluster-reset was successfully performed, " +
-					"please remove the cluster-reset flag and start %s normally, " +
-					"if you need to perform another cluster reset, " +
-					"you must first manually delete the %s file",
-					version.Program, resetFile)
+				return err
 			}
+		} else {
+			return fmt.Errorf("cluster-reset was successfully performed, " +
+				"please remove the cluster-reset flag and start %s normally, " +
+				"if you need to perform another cluster reset, " +
+				"you must first manually delete the %s file",
+				version.Program, resetFile)
 		}
 		return c.managedDB.Reset(ctx, c.clientAccessInfo)
 	}
