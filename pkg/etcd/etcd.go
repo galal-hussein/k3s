@@ -500,7 +500,8 @@ func (e *ETCD) removePeer(ctx context.Context, id, address string) error {
 				_, err := e.client.MemberRemove(ctx, member.ID)
 				if err != nil {
 					logrus.Infof("husssss: eerror: %v", err.Error())
-					if strings.Contains(err.Error(), rpctypes.ErrGRPCMemberNotFound.Error()) {
+					logrus.Infof("huss: main error: %v", rpctypes.ErrMemberNotFound.Error())
+					if strings.Contains("member not found", err.Error()) {
 						logrus.Infof("husssssss: member not found returning nil")
 						return nil
 					}
