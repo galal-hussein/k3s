@@ -42,6 +42,7 @@ func (c *Cluster) testClusterDB(ctx context.Context) (<-chan struct{}, error) {
 			select {
 			case <-time.After(5 * time.Second):
 			case <-ctx.Done():
+				logrus.Infof("hgalalaz logs: context is done")
 				return
 			}
 		}
