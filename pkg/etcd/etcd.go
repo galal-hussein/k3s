@@ -74,16 +74,20 @@ func (e *ETCD) EndpointName() string {
 func (e *ETCD) Test(ctx context.Context, clientAccessInfo *clientaccess.Info) error {
 	ctx, cancel := context.WithTimeout(ctx, testTimeout)
 	defer cancel()
+	logrus.Infof("hgalal: check client status")
 	status, err := e.client.Status(ctx, endpoint)
 	if err != nil {
+		logrus.Infof("hgalal: error getting client status")
 		return err
 	}
 
 	if status.IsLearner {
+		logrus.Infof("hgalal: member is a learner and trying to promote")
 		if err := e.promoteMember(ctx, clientAccessInfo); err != nil {
 			return err
 		}
 	}
+	logrus.Infof("hgalal: checking member list")
 	members, err := e.client.MemberList(ctx)
 	if err != nil {
 		return err
@@ -91,12 +95,15 @@ func (e *ETCD) Test(ctx context.Context, clientAccessInfo *clientaccess.Info) er
 
 	var memberNameUrls []string
 	for _, member := range members.Members {
+		logrus.Infof("hgalal: in membes loop")
 		for _, peerURL := range member.PeerURLs {
 			if peerURL == e.peerURL() && e.name == member.Name {
+				logrus.Infof("hgalal: etcd is fine")
 				return nil
 			}
 		}
 		if len(member.PeerURLs) > 0 {
+			logrus.Infof("hgalal: member peer urls is greater than 0")
 			memberNameUrls = append(memberNameUrls, member.Name+"="+member.PeerURLs[0])
 		}
 	}
