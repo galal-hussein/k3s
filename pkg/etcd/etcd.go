@@ -72,8 +72,6 @@ func (e *ETCD) EndpointName() string {
 // Test ensures that the local node is a part of the target cluster. If it is a learner, a goroutine
 // will be started to promote it to full member. If it is not a part of the cluster, an error is raised.
 func (e *ETCD) Test(ctx context.Context, clientAccessInfo *clientaccess.Info) error {
-	ctx, cancel := context.WithTimeout(ctx, testTimeout)
-	defer cancel()
 	status, err := e.client.Status(ctx, endpoint)
 	if err != nil {
 		return err

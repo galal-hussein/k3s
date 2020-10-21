@@ -31,6 +31,7 @@ func (c *Cluster) testClusterDB(ctx context.Context) (<-chan struct{}, error) {
 	go func() {
 		defer close(result)
 		for {
+			logrus.Infof("hgalalaz: testing etcd for each 5 seconds")
 			if err := c.managedDB.Test(ctx, c.clientAccessInfo); err != nil {
 				logrus.Infof("Failed to test data store connection: %v", err)
 			} else {
