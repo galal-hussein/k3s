@@ -517,6 +517,7 @@ func (e *ETCD) removePeer(ctx context.Context, id, address string) error {
 // that has just been added to the cluster and is trying to promote itself. If it is run when there
 // are no learners, it will never return.
 func (e *ETCD) promoteMember(ctx context.Context, clientAccessInfo *clientaccess.Info) error {
+	logrus.Infof("hgalal in member promote fn: getting client urls")
 	clientURLs, _, err := e.clientURLs(ctx, clientAccessInfo)
 	if err != nil {
 		return err
@@ -525,27 +526,34 @@ func (e *ETCD) promoteMember(ctx context.Context, clientAccessInfo *clientaccess
 	t := time.NewTicker(5 * time.Second)
 	defer t.Stop()
 	for range t.C {
+		logrus.Infof("hgalal in member promote fn: in the loop ticker, get client")
 		client, err := getClient(ctx, e.runtime, clientURLs...)
 		// continue on errors to keep trying to promote member
 		// grpc error are shown so no need to re log them
 		if err != nil {
+			logrus.Infof("hgalal in member promote fn: getting client urls error: %v", err)
 			continue
 		}
+		logrus.Infof("hgalal in member promote fn: getting member list")
 		members, err := client.MemberList(ctx)
 		if err != nil {
+			logrus.Infof("hgalal in member promote fn: getting member list error: %v", err)
 			continue
 		}
 		for _, member := range members.Members {
+			logrus.Infof("hgalal in member promote fn: in members loop")
 			// only one learner can exist in the cluster
 			if !member.IsLearner {
 				continue
 			}
 			if _, err := client.MemberPromote(ctx, member.ID); err != nil {
+				logrus.Infof("hgalal in member promote fn: error member promoting: %v", err)
 				memberPromoted = false
 				break
 			}
 		}
 		if memberPromoted {
+			logrus.Infof("hgalal in member promote fn: member promoted")
 			break
 		}
 	}
