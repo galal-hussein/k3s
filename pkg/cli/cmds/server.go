@@ -64,7 +64,120 @@ type Server struct {
 	EtcdSnapshotRetention    int
 }
 
-var ServerConfig Server
+var (
+	ServerConfig Server
+	TLSSan       = cli.StringSliceFlag{
+		Name:  "tls-san",
+		Usage: "(listener) Add additional hostname or IP as a Subject Alternative Name in the TLS cert",
+		Value: &ServerConfig.TLSSan,
+	}
+	DataDir = cli.StringFlag{
+		Name:        "data-dir,d",
+		Usage:       "(data) Folder to hold state default /var/lib/rancher/" + version.Program + " or ${HOME}/.rancher/" + version.Program + " if not root",
+		Destination: &ServerConfig.DataDir,
+	}
+	FlannelBackend = cli.StringFlag{
+		Name:        "flannel-backend",
+		Usage:       "(networking) One of 'none', 'vxlan', 'ipsec', 'host-gw', or 'wireguard'",
+		Destination: &ServerConfig.FlannelBackend,
+		Value:       "vxlan",
+	}
+	Token = cli.StringFlag{
+		Name:        "token,t",
+		Usage:       "(cluster) Shared secret used to join a server or agent to a cluster",
+		Destination: &ServerConfig.Token,
+		EnvVar:      version.ProgramUpper + "_TOKEN",
+	}
+	TokenFile = cli.StringFlag{
+		Name:        "token-file",
+		Usage:       "(cluster) File containing the cluster-secret/token",
+		Destination: &ServerConfig.TokenFile,
+		EnvVar:      version.ProgramUpper + "_TOKEN_FILE",
+	}
+	KubeConfigOutput = cli.StringFlag{
+		Name:        "write-kubeconfig,o",
+		Usage:       "(client) Write kubeconfig for admin client to this file",
+		Destination: &ServerConfig.KubeConfigOutput,
+		EnvVar:      version.ProgramUpper + "_KUBECONFIG_OUTPUT",
+	}
+	KubeConfigMode = cli.StringFlag{
+		Name:        "write-kubeconfig-mode",
+		Usage:       "(client) Write kubeconfig with this mode",
+		Destination: &ServerConfig.KubeConfigMode,
+		EnvVar:      version.ProgramUpper + "_KUBECONFIG_MODE",
+	}
+	EtcdDisableSnapshots = &cli.BoolFlag{
+		Name:        "etcd-disable-snapshots",
+		Usage:       "(db) Disable automatic etcd snapshots",
+		Destination: &ServerConfig.EtcdDisableSnapshots,
+	}
+	EtcdSnapshotCron = &cli.StringFlag{
+		Name:        "etcd-snapshot-schedule-cron",
+		Usage:       "(db) Snapshot interval time in cron spec. eg. every 5 hours '* */5 * * *'",
+		Destination: &ServerConfig.EtcdSnapshotCron,
+		Value:       "0 */12 * * *",
+	}
+	EtcdSnapshotRetention = &cli.IntFlag{
+		Name:        "etcd-snapshot-retention",
+		Usage:       "(db) Number of snapshots to retain",
+		Destination: &ServerConfig.EtcdSnapshotRetention,
+		Value:       defaultSnapshotRentention,
+	}
+	EtcdSnapshotDir = &cli.StringFlag{
+		Name:        "etcd-snapshot-dir",
+		Usage:       "(db) Directory to save db snapshots. (Default location: ${data-dir}/db/snapshots)",
+		Destination: &ServerConfig.EtcdSnapshotDir,
+	}
+	DisableNPC = cli.BoolFlag{
+		Name:        "disable-network-policy",
+		Usage:       "(components) Disable " + version.Program + " default network policy controller",
+		Destination: &ServerConfig.DisableNPC,
+	}
+	AgentToken = cli.StringFlag{
+		Name:        "agent-token",
+		Usage:       "(experimental/cluster) Shared secret used to join agents to the cluster, but not servers",
+		Destination: &ServerConfig.AgentToken,
+		EnvVar:      version.ProgramUpper + "_AGENT_TOKEN",
+	}
+	AgentTokenFile = cli.StringFlag{
+		Name:        "agent-token-file",
+		Usage:       "(experimental/cluster) File containing the agent secret",
+		Destination: &ServerConfig.AgentTokenFile,
+		EnvVar:      version.ProgramUpper + "_AGENT_TOKEN_FILE",
+	}
+	ServerURL = cli.StringFlag{
+		Name:        "server,s",
+		Hidden:      hideClusterFlags,
+		Usage:       "(experimental/cluster) Server to connect to, used to join a cluster",
+		EnvVar:      version.ProgramUpper + "_URL",
+		Destination: &ServerConfig.ServerURL,
+	}
+	ClusterInit = cli.BoolFlag{
+		Name:        "cluster-init",
+		Hidden:      hideClusterFlags,
+		Usage:       "(experimental/cluster) Initialize a new cluster",
+		EnvVar:      version.ProgramUpper + "_CLUSTER_INIT",
+		Destination: &ServerConfig.ClusterInit,
+	}
+	ClusterReset = cli.BoolFlag{
+		Name:        "cluster-reset",
+		Hidden:      hideClusterFlags,
+		Usage:       "(experimental/cluster) Forget all peers and become sole member of a new cluster",
+		EnvVar:      version.ProgramUpper + "_CLUSTER_RESET",
+		Destination: &ServerConfig.ClusterReset,
+	}
+	ClusterResetRestorePath = &cli.StringFlag{
+		Name:        "cluster-reset-restore-path",
+		Usage:       "(db) Path to snapshot file to be restored",
+		Destination: &ServerConfig.ClusterResetRestorePath,
+	}
+	HTTPSPort = cli.IntFlag{
+Name:        "https-listen-port",
+Usage:       "(listener) HTTPS listen port",
+Value:       6443,
+Destination: &ServerConfig.HTTPSPort,
+}
+)
 
 func NewServerCommand(action func(*cli.Context) error) cli.Command {
 	return cli.Command{
@@ -85,12 +198,7 @@ func NewServerCommand(action func(*cli.Context) error) cli.Command {
 				Usage:       "(listener) " + version.Program + " bind address (default: 0.0.0.0)",
 				Destination: &ServerConfig.BindAddress,
 			},
-			cli.IntFlag{
-				Name:        "https-listen-port",
-				Usage:       "(listener) HTTPS listen port",
-				Value:       6443,
-				Destination: &ServerConfig.HTTPSPort,
-			},
+			HTTPSPort,
 			cli.StringFlag{
 				Name:        "advertise-address",
 				Usage:       "(listener) IP address that apiserver uses to advertise to members of the cluster (default: node-external-ip/node-ip)",
@@ -101,16 +209,8 @@ func NewServerCommand(action func(*cli.Context) error) cli.Command {
 				Usage:       "(listener) Port that apiserver uses to advertise to members of the cluster (default: listen-port)",
 				Destination: &ServerConfig.AdvertisePort,
 			},
-			cli.StringSliceFlag{
-				Name:  "tls-san",
-				Usage: "(listener) Add additional hostname or IP as a Subject Alternative Name in the TLS cert",
-				Value: &ServerConfig.TLSSan,
-			},
-			cli.StringFlag{
-				Name:        "data-dir,d",
-				Usage:       "(data) Folder to hold state default /var/lib/rancher/" + version.Program + " or ${HOME}/.rancher/" + version.Program + " if not root",
-				Destination: &ServerConfig.DataDir,
-			},
+			TLSSan,
+			DataDir,
 			cli.StringFlag{
 				Name:        "cluster-cidr",
 				Usage:       "(networking) Network CIDR to use for pod IPs",
@@ -135,36 +235,11 @@ func NewServerCommand(action func(*cli.Context) error) cli.Command {
 				Destination: &ServerConfig.ClusterDomain,
 				Value:       "cluster.local",
 			},
-			cli.StringFlag{
-				Name:        "flannel-backend",
-				Usage:       "(networking) One of 'none', 'vxlan', 'ipsec', 'host-gw', or 'wireguard'",
-				Destination: &ServerConfig.FlannelBackend,
-				Value:       "vxlan",
-			},
-			cli.StringFlag{
-				Name:        "token,t",
-				Usage:       "(cluster) Shared secret used to join a server or agent to a cluster",
-				Destination: &ServerConfig.Token,
-				EnvVar:      version.ProgramUpper + "_TOKEN",
-			},
-			cli.StringFlag{
-				Name:        "token-file",
-				Usage:       "(cluster) File containing the cluster-secret/token",
-				Destination: &ServerConfig.TokenFile,
-				EnvVar:      version.ProgramUpper + "_TOKEN_FILE",
-			},
-			cli.StringFlag{
-				Name:        "write-kubeconfig,o",
-				Usage:       "(client) Write kubeconfig for admin client to this file",
-				Destination: &ServerConfig.KubeConfigOutput,
-				EnvVar:      version.ProgramUpper + "_KUBECONFIG_OUTPUT",
-			},
-			cli.StringFlag{
-				Name:        "write-kubeconfig-mode",
-				Usage:       "(client) Write kubeconfig with this mode",
-				Destination: &ServerConfig.KubeConfigMode,
-				EnvVar:      version.ProgramUpper + "_KUBECONFIG_MODE",
-			},
+			FlannelBackend,
+			Token,
+			TokenFile,
+			KubeConfigOutput,
+			KubeConfigMode,
 			cli.StringSliceFlag{
 				Name:  "kube-apiserver-arg",
 				Usage: "(flags) Customized flag for kube-apiserver process",
@@ -209,28 +284,10 @@ func NewServerCommand(action func(*cli.Context) error) cli.Command {
 				Destination: &ServerConfig.DatastoreKeyFile,
 				EnvVar:      version.ProgramUpper + "_DATASTORE_KEYFILE",
 			},
-			&cli.BoolFlag{
-				Name:        "etcd-disable-snapshots",
-				Usage:       "(db) Disable automatic etcd snapshots",
-				Destination: &ServerConfig.EtcdDisableSnapshots,
-			},
-			&cli.StringFlag{
-				Name:        "etcd-snapshot-schedule-cron",
-				Usage:       "(db) Snapshot interval time in cron spec. eg. every 5 hours '* */5 * * *'",
-				Destination: &ServerConfig.EtcdSnapshotCron,
-				Value:       "0 */12 * * *",
-			},
-			&cli.IntFlag{
-				Name:        "etcd-snapshot-retention",
-				Usage:       "(db) Number of snapshots to retain",
-				Destination: &ServerConfig.EtcdSnapshotRetention,
-				Value:       defaultSnapshotRentention,
-			},
-			&cli.StringFlag{
-				Name:        "etcd-snapshot-dir",
-				Usage:       "(db) Directory to save db snapshots. (Default location: ${data-dir}/db/snapshots)",
-				Destination: &ServerConfig.EtcdSnapshotDir,
-			},
+			EtcdDisableSnapshots,
+			EtcdSnapshotCron,
+			EtcdSnapshotRetention,
+			EtcdSnapshotDir,
 			cli.StringFlag{
 				Name:        "default-local-storage-path",
 				Usage:       "(storage) Default local storage path for local provisioner storage class",
@@ -255,11 +312,7 @@ func NewServerCommand(action func(*cli.Context) error) cli.Command {
 				Usage:       "(components) Disable running kube-proxy",
 				Destination: &ServerConfig.DisableKubeProxy,
 			},
-			cli.BoolFlag{
-				Name:        "disable-network-policy",
-				Usage:       "(components) Disable " + version.Program + " default network policy controller",
-				Destination: &ServerConfig.DisableNPC,
-			},
+			DisableNPC,
 			NodeNameFlag,
 			WithNodeIDFlag,
 			NodeLabels,
@@ -282,44 +335,12 @@ func NewServerCommand(action func(*cli.Context) error) cli.Command {
 				Usage:       "(experimental) Run rootless",
 				Destination: &ServerConfig.Rootless,
 			},
-			cli.StringFlag{
-				Name:        "agent-token",
-				Usage:       "(experimental/cluster) Shared secret used to join agents to the cluster, but not servers",
-				Destination: &ServerConfig.AgentToken,
-				EnvVar:      version.ProgramUpper + "_AGENT_TOKEN",
-			},
-			cli.StringFlag{
-				Name:        "agent-token-file",
-				Usage:       "(experimental/cluster) File containing the agent secret",
-				Destination: &ServerConfig.AgentTokenFile,
-				EnvVar:      version.ProgramUpper + "_AGENT_TOKEN_FILE",
-			},
-			cli.StringFlag{
-				Name:        "server,s",
-				Hidden:      hideClusterFlags,
-				Usage:       "(experimental/cluster) Server to connect to, used to join a cluster",
-				EnvVar:      version.ProgramUpper + "_URL",
-				Destination: &ServerConfig.ServerURL,
-			},
-			cli.BoolFlag{
-				Name:        "cluster-init",
-				Hidden:      hideClusterFlags,
-				Usage:       "(experimental/cluster) Initialize a new cluster",
-				EnvVar:      version.ProgramUpper + "_CLUSTER_INIT",
-				Destination: &ServerConfig.ClusterInit,
-			},
-			cli.BoolFlag{
-				Name:        "cluster-reset",
-				Hidden:      hideClusterFlags,
-				Usage:       "(experimental/cluster) Forget all peers and become sole member of a new cluster",
-				EnvVar:      version.ProgramUpper + "_CLUSTER_RESET",
-				Destination: &ServerConfig.ClusterReset,
-			},
-			&cli.StringFlag{
-				Name:        "cluster-reset-restore-path",
-				Usage:       "(db) Path to snapshot file to be restored",
-				Destination: &ServerConfig.ClusterResetRestorePath,
-			},
+			AgentToken,
+			AgentTokenFile,
+			ServerURL,
+			ClusterInit,
+			ClusterReset,
+			ClusterResetRestorePath,
 			cli.BoolFlag{
 				Name:        "secrets-encryption",
 				Usage:       "(experimental) Enable Secret encryption at rest",

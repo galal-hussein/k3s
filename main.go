@@ -12,6 +12,7 @@ import (
 	"github.com/rancher/k3s/pkg/cli/agent"
 	"github.com/rancher/k3s/pkg/cli/cmds"
 	"github.com/rancher/k3s/pkg/cli/crictl"
+	"github.com/rancher/k3s/pkg/cli/etcd"
 	"github.com/rancher/k3s/pkg/cli/kubectl"
 	"github.com/rancher/k3s/pkg/cli/server"
 	"github.com/rancher/k3s/pkg/configfilearg"
@@ -24,6 +25,7 @@ func main() {
 	app.Commands = []cli.Command{
 		cmds.NewServerCommand(server.Run),
 		cmds.NewAgentCommand(agent.Run),
+		cmds.NewETCDCommand(etcd.Run),
 		cmds.NewKubectlCommand(kubectl.Run),
 		cmds.NewCRICTL(crictl.Run),
 	}

@@ -115,7 +115,9 @@ func (c *Cluster) bootstrapped() error {
 
 	return f.Close()
 }
-
+/bootstrap
+/server-bootstrap
+/
 // httpBootstrap retrieves bootstrap data (certs and keys, etc) from the remote server via HTTP
 // and loads it into the ControlRuntimeBootstrap struct. Unlike the storage bootstrap path,
 // this data does not need to be decrypted since it is generated on-demand by an existing server.
