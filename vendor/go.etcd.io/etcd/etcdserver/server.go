@@ -105,6 +105,7 @@ var (
 	plog = capnslog.NewPackageLogger("go.etcd.io/etcd", "etcdserver")
 
 	storeMemberAttributeRegexp = regexp.MustCompile(path.Join(membership.StoreMembersPrefix, "[[:xdigit:]]{1,16}", "attributes"))
+
 )
 
 func init() {
@@ -1388,7 +1389,7 @@ func (s *EtcdServer) applyEntries(ep *etcdProgress, apply *apply) {
 	}
 	var shouldstop bool
 	if ep.appliedt, ep.appliedi, shouldstop = s.apply(ents, &ep.confState); shouldstop {
-		go s.stopWithDelay(10*100*time.Millisecond, fmt.Errorf("the member has been permanently removed from the cluster"))
+		go s.stopWithDelay(10*100*time.Millisecond, ErrMemberRemoved)
 	}
 }
 
@@ -1550,6 +1551,8 @@ func (s *EtcdServer) stopWithDelay(d time.Duration, err error) {
 // StopNotify returns a channel that receives a empty struct
 // when the server is stopped.
 func (s *EtcdServer) StopNotify() <-chan struct{} { return s.done }
+
+func (s *EtcdServer) ErrNotify() <-chan error { return s.errorc }
 
 func (s *EtcdServer) SelfStats() []byte { return s.stats.JSON() }
 
@@ -2145,6 +2148,7 @@ func (s *EtcdServer) apply(
 				s.consistIndex.setConsistentIndex(e.Index)
 			}
 			var cc raftpb.ConfChange
+			var removedSelf bool
 			pbutil.MustUnmarshal(&cc, e.Data)
 			removedSelf, err := s.applyConfChange(cc, confState)
 			s.setAppliedIndex(e.Index)
@@ -2310,6 +2314,7 @@ func (s *EtcdServer) applyConfChange(cc raftpb.ConfChange, confState *raftpb.Con
 		id := types.ID(cc.NodeID)
 		s.cluster.RemoveMember(id)
 		if id == s.id {
+			fmt.Println("hhhhhh: the conf  chang is remove member, so it has been removed")
 			return true, nil
 		}
 		s.r.transport.RemovePeer(id)
