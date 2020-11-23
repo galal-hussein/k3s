@@ -201,13 +201,6 @@ func (e *ETCD) Reset(ctx context.Context) error {
 
 // Start starts the datastore
 func (e *ETCD) Start(ctx context.Context, clientAccessInfo *clientaccess.Info) error {
-	tombstoneFile := filepath.Join(etcdDBDir(e.config), "tombstone")
-	if _, err := os.Stat(tombstoneFile); err == nil {
-		logrus.Infof("tombstone file has been detected, removing data dir to rejoin the cluster")
-		if _, err := backupDirWithRetention(etcdDBDir(e.config), maxBackupRetention); err != nil {
-			return err
-		}
-	}
 	existingCluster, err := e.IsInitialized(ctx, e.config)
 	if err != nil {
 		return errors.Wrapf(err, "configuration validation failed")
@@ -332,6 +325,13 @@ func (e *ETCD) Register(ctx context.Context, config *config.Control, handler htt
 		return nil, err
 	}
 
+	tombstoneFile := filepath.Join(etcdDBDir(e.config), "tombstone")
+	if _, err := os.Stat(tombstoneFile); err == nil {
+		logrus.Infof("tombstone file has been detected, removing data dir to rejoin the cluster")
+		if _, err := backupDirWithRetention(etcdDBDir(e.config), maxBackupRetention); err != nil {
+			return nil, err
+		}
+	}
 	return e.handler(handler), err
 }
 
