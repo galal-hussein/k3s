@@ -3,10 +3,12 @@
 package executor
 
 import (
-	"github.com/rancher/k3s/pkg/util"
+	"github.com/rancher/k3s/pkg/version"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/embed"
 	"go.etcd.io/etcd/etcdserver"
+	"io/ioutil"
+	"path/filepath"
 	"strings"
 )
 
@@ -31,13 +33,18 @@ func (e Embedded) ETCD(args ETCDConfig) error {
 	go func() {
 		select {
 		case err := <-etcd.Server.ErrNotify():
-			var backupdatadir string
 			if strings.Contains(err.Error(), etcdserver.ErrMemberRemoved.Error()) {
-				if backupdatadir, err = util.BackupDirWithRetention(args.DataDir, 5); err != nil {
-					logrus.Fatalf("Failed to remove old etcd datadir: %v", err)
+				tombstoneFile := filepath.Join(args.DataDir, "tombstone")
+				if err := ioutil.WriteFile(tombstoneFile, []byte{}, 0600); err != nil {
+					logrus.Fatal("failed to write tombstone file to %s", tombstoneFile)
 				}
+				logrus.Infof("this node has been removed from the cluster please restart the %s to rejoin the cluster", version.Program)
+				return
+			//	if backupdatadir, err = util.BackupDirWithRetention(args.DataDir, 5); err != nil {
+			//		logrus.Fatalf("Failed to remove old etcd datadir: %v", err)
+			//	}
 			}
-			logrus.Fatalf("etcd data dir was moved to %s - please re run k3s and it will join the cluster", backupdatadir)
+
 		case <-etcd.Server.StopNotify():
 			logrus.Fatalf("etcd stopped")
 		case err := <-etcd.Err():

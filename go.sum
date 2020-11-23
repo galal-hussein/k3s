@@ -274,6 +274,10 @@ github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201121211049-a40714588952 h1:ut
 github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201121211049-a40714588952/go.mod h1:yVHk9ub3CSBatqGNg7GRmsnfLWtoW60w4eDYfh7vHDg=
 github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201122004449-ddc94378537b h1:uOpW10lPZGvVwu3YTI4icW49Ds9R99n5jtXKu3YEeW0=
 github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201122004449-ddc94378537b/go.mod h1:yVHk9ub3CSBatqGNg7GRmsnfLWtoW60w4eDYfh7vHDg=
+github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201123041253-68adc90c4774 h1:F6tF65a9lI/nLkvFgrwGIAbaYWKuio0fe582czm+MZE=
+github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201123041253-68adc90c4774/go.mod h1:yVHk9ub3CSBatqGNg7GRmsnfLWtoW60w4eDYfh7vHDg=
+github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201123041810-915c798f7878 h1:d6ZCAxDKdT4iWvk7NCtcd6Il7RMgkLOPAvGykwefVPY=
+github.com/galal-hussein/etcd v0.5.0-alpha.5.0.20201123041810-915c798f7878/go.mod h1:yVHk9ub3CSBatqGNg7GRmsnfLWtoW60w4eDYfh7vHDg=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/ghodss/yaml v1.0.0 h1:wQHKEahhL6wmXdzwWG11gIVCkOv05bNOh+Rxn0yngAk=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
