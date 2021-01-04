@@ -2,12 +2,14 @@ package cluster
 
 import (
 	"context"
+	"net/url"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rancher/k3s/pkg/clientaccess"
 	"github.com/rancher/k3s/pkg/cluster/managed"
 	"github.com/rancher/k3s/pkg/daemons/config"
+	"github.com/rancher/k3s/pkg/etcd"
 	"github.com/rancher/kine/pkg/client"
 	"github.com/rancher/kine/pkg/endpoint"
 )
@@ -32,6 +34,18 @@ func (c *Cluster) Start(ctx context.Context) (<-chan struct{}, error) {
 	// Set up the dynamiclistener and http request handlers
 	if err := c.initClusterAndHTTPS(ctx); err != nil {
 		return nil, errors.Wrap(err, "init cluster datastore and https")
+	}
+
+	if c.config.DisableETCD {
+		ready := make(chan struct{})
+		defer close(ready)
+		etcdAddress, err := url.Parse(c.config.JoinURL)
+		etcdProxy, err := etcd.NewETCDProxy(true, c.config.DataDir, "https://"+etcdAddress.Hostname()+":2379")
+		if err != nil {
+			return nil, err
+		}
+		c.setupEtcdProxy(ctx, etcdProxy)
+		return ready, nil
 	}
 
 	// start managed database (if necessary)

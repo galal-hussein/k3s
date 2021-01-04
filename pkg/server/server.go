@@ -36,7 +36,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/net"
 )
 
-const MasterRoleLabelKey = "node-role.kubernetes.io/master"
+const (
+	MasterRoleLabelKey = "node-role.kubernetes.io/master"
+	ETCDRoleLabelKey   = "node-role.kubernetes.io/etcd"
+)
 
 func resolveDataDir(dataDir string) (string, error) {
 	dataDir, err := datadir.Resolve(dataDir)
@@ -51,7 +54,7 @@ func StartServer(ctx context.Context, config *Config) error {
 	if err := setNoProxyEnv(&config.ControlConfig); err != nil {
 		return err
 	}
-
+	config.ControlConfig.DisableETCD = config.DisableETCD
 	if err := control.Server(ctx, &config.ControlConfig); err != nil {
 		return errors.Wrap(err, "starting kubernetes")
 	}
@@ -439,6 +442,13 @@ func setMasterRoleLabel(ctx context.Context, nodes v1.NodeClient) error {
 			node.Labels = make(map[string]string)
 		}
 		node.Labels[MasterRoleLabelKey] = "true"
+
+		// remove etcd taint if exists
+		for i, taint := range node.Spec.Taints {
+			if taint.Key == "node-role.kubernetes.io/etcd" {
+				node.Spec.Taints = append(node.Spec.Taints[:i], node.Spec.Taints[i+1:]...)
+			}
+		}
 		_, err = nodes.Update(node)
 		if err == nil {
 			logrus.Infof("Master role label has been set successfully on node: %s", nodeName)
