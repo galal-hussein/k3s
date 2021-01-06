@@ -129,7 +129,7 @@ func (c *Cluster) assignManagedDriver(ctx context.Context) error {
 }
 
 // setupEtcdProxy
-func (c *Cluster) setupEtcdProxy(ctx context.Context, etcdProxy etcd.ETCDProxy) {
+func (c *Cluster) setupEtcdProxy(ctx context.Context, etcdProxy etcd.Proxy) {
 	if c.managedDB == nil {
 		return
 	}

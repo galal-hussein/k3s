@@ -7,14 +7,14 @@ import (
 	"github.com/rancher/k3s/pkg/agent/loadbalancer"
 )
 
-type ETCDProxy interface {
+type Proxy interface {
 	Update(addresses []string)
 	ETCDURL() string
 	ETCDAddresses() []string
 	ETCDServerURL() string
 }
 
-func NewETCDProxy(enabled bool, dataDir, etcdURL string) (ETCDProxy, error) {
+func NewETCDProxy(enabled bool, dataDir, etcdURL string) (Proxy, error) {
 	e := &etcdproxy{
 		dataDir:        dataDir,
 		initialETCDURL: etcdURL,

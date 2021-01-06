@@ -40,6 +40,9 @@ func (c *Cluster) Start(ctx context.Context) (<-chan struct{}, error) {
 		ready := make(chan struct{})
 		defer close(ready)
 		etcdAddress, err := url.Parse(c.config.JoinURL)
+		if err != nil {
+			return nil, err
+		}
 		etcdProxy, err := etcd.NewETCDProxy(true, c.config.DataDir, "https://"+etcdAddress.Hostname()+":2379")
 		if err != nil {
 			return nil, err
