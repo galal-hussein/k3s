@@ -133,3 +133,29 @@ func readConfigFileData(file string) ([]byte, error) {
 		return ioutil.ReadFile(file)
 	}
 }
+
+func (p *Parser) FindString(args []string, target string) (string, error) {
+	configFile, isSet := p.findConfigFileFlag(args)
+	if configFile != "" {
+		bytes, err := readConfigFileData(configFile)
+		if !isSet && os.IsNotExist(err) {
+			return "", nil
+		} else if err != nil {
+			return "", err
+		}
+
+		data := yaml.MapSlice{}
+		if err := yaml.Unmarshal(bytes, &data); err != nil {
+			return "", err
+		}
+
+		for _, i := range data {
+			k, v := convert.ToString(i.Key), convert.ToString(i.Value)
+			if k == target {
+				return v, nil
+			}
+		}
+	}
+
+	return "", nil
+}
