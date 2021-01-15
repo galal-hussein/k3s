@@ -306,23 +306,27 @@ func run(app *cli.Context, cfg *cmds.Server) error {
 	if serverConfig.DisableServer {
 		agentConfig.LBServerPort = lbServerPort
 		agentConfig.Taints = append(agentConfig.Taints, "node-role.kubernetes.io/etcd:NoExecute")
-		for {
-			serverIP, serverPort, err := etcd.GetServerURLFromETCD(ctx, &serverConfig.ControlConfig)
-			if err != nil {
-				logrus.Warn(err)
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(5 * time.Second):
+		agentConfig.DisableServer = true
+		// start a thread to check for the server ip if set from etcd
+		go func() {
+			for {
+				serverIP, serverPort, err := etcd.GetServerURLFromETCD(ctx, &serverConfig.ControlConfig)
+				if err != nil {
+					logrus.Warn(err)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(5 * time.Second):
+					}
+					continue
 				}
-				continue
+				agentConfig.ServerURLch = fmt.Sprintf("https://%s:%d", serverIP, serverPort)
+				break
 			}
-			agentConfig.ServerURL = fmt.Sprintf("https://%s:%d", serverIP, serverPort)
-			break
-		}
+		}()
 	}
 
-	return agent.Run(ctx, agentConfig)
+	return agent.Run(ctx, &agentConfig)
 }
 
 func knownIPs(ips []string) []string {

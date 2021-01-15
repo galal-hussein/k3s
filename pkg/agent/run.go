@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/k3s/pkg/agent/flannel"
 	"github.com/rancher/k3s/pkg/agent/netpol"
 	"github.com/rancher/k3s/pkg/agent/proxy"
+	lbproxy "github.com/rancher/k3s/pkg/agent/proxy"
 	"github.com/rancher/k3s/pkg/agent/syssetup"
 	"github.com/rancher/k3s/pkg/agent/tunnel"
 	"github.com/rancher/k3s/pkg/cli/cmds"
@@ -69,10 +70,10 @@ func setupCriCtlConfig(cfg cmds.Agent, nodeConfig *daemonconfig.Node) error {
 	return ioutil.WriteFile(agentConfDir+"/crictl.yaml", []byte(crp), 0600)
 }
 
-func run(ctx context.Context, cfg cmds.Agent, proxy proxy.Proxy) error {
-	nodeConfig := config.Get(ctx, cfg, proxy)
+func run(ctx context.Context, cfg *cmds.Agent, proxy proxy.Proxy) error {
+	nodeConfig := config.Get(ctx, *cfg, proxy)
 
-	if err := setupCriCtlConfig(cfg, nodeConfig); err != nil {
+	if err := setupCriCtlConfig(*cfg, nodeConfig); err != nil {
 		return err
 	}
 
@@ -88,12 +89,33 @@ func run(ctx context.Context, cfg cmds.Agent, proxy proxy.Proxy) error {
 		}
 	}
 
-	if err := tunnel.Setup(ctx, nodeConfig, proxy); err != nil {
-		return err
+	if cfg.DisableServer {
+		if err := proxy.DisableProxy(); err != nil {
+			return err
+		}
 	}
 
 	if err := agent.Agent(&nodeConfig.AgentConfig); err != nil {
 		return err
+	}
+
+	if err := tunnel.Setup(ctx, nodeConfig, proxy); err != nil {
+		return err
+	}
+
+	if cfg.DisableServer {
+		var err error
+		for {
+			time.Sleep(5 * time.Second)
+			if cfg.ServerURLch != "" {
+				logrus.Infof("starting a new proxy")
+				proxy, err = lbproxy.NewAPIProxy(!cfg.DisableLoadBalancer, cfg.DataDir, cfg.ServerURLch, cfg.LBServerPort)
+				if err != nil {
+					return err
+				}
+				break
+			}
+		}
 	}
 
 	coreClient, err := coreClient(nodeConfig.AgentConfig.KubeConfigKubelet)
@@ -129,7 +151,7 @@ func coreClient(cfg string) (kubernetes.Interface, error) {
 	return kubernetes.NewForConfig(restConfig)
 }
 
-func Run(ctx context.Context, cfg cmds.Agent) error {
+func Run(ctx context.Context, cfg *cmds.Agent) error {
 	if err := validate(); err != nil {
 		return err
 	}
@@ -146,7 +168,7 @@ func Run(ctx context.Context, cfg cmds.Agent) error {
 		return err
 	}
 
-	proxy, err := proxy.NewAPIProxy(!cfg.DisableLoadBalancer, cfg.DataDir, cfg.ServerURL, cfg.LBServerPort)
+	proxy, err := lbproxy.NewAPIProxy(!cfg.DisableLoadBalancer, cfg.DataDir, cfg.ServerURL, cfg.LBServerPort)
 	if err != nil {
 		return err
 	}

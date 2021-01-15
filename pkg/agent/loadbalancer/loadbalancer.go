@@ -27,6 +27,7 @@ type LoadBalancer struct {
 	randomServers         []string
 	currentServerAddress  string
 	nextServerIndex       int
+	Listener              net.Listener
 }
 
 var (
@@ -62,6 +63,7 @@ func New(dataDir, serviceName, serverURL string, lbServerPort int) (_lb *LoadBal
 		localServerURL:        localServerURL,
 		originalServerAddress: originalServerAddress,
 		ServerURL:             serverURL,
+		Listener:              listener,
 	}
 
 	lb.setServers([]string{lb.originalServerAddress})

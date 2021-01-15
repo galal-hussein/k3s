@@ -83,7 +83,7 @@ func Setup(ctx context.Context, config *config.Node, proxy proxy.Proxy) error {
 	wg := &sync.WaitGroup{}
 	for _, address := range proxy.SupervisorAddresses() {
 		if _, ok := disconnect[address]; !ok {
-			disconnect[address] = connect(ctx, wg, address, tlsConfig)
+			disconnect[address] = connect(ctx, wg, address, tlsConfig, proxy)
 		}
 	}
 
@@ -127,7 +127,8 @@ func Setup(ctx context.Context, config *config.Node, proxy proxy.Proxy) error {
 					for _, address := range proxy.SupervisorAddresses() {
 						validEndpoint[address] = true
 						if _, ok := disconnect[address]; !ok {
-							disconnect[address] = connect(ctx, nil, address, tlsConfig)
+							logrus.Infof("calling connect from 2 address: %s", address)
+							disconnect[address] = connect(ctx, nil, address, tlsConfig, proxy)
 						}
 					}
 
@@ -159,7 +160,7 @@ func Setup(ctx context.Context, config *config.Node, proxy proxy.Proxy) error {
 	return nil
 }
 
-func connect(rootCtx context.Context, waitGroup *sync.WaitGroup, address string, tlsConfig *tls.Config) context.CancelFunc {
+func connect(rootCtx context.Context, waitGroup *sync.WaitGroup, address string, tlsConfig *tls.Config, proxy proxy.Proxy) context.CancelFunc {
 	wsURL := fmt.Sprintf("wss://%s/v1-"+version.Program+"/connect", address)
 	ws := &websocket.Dialer{
 		TLSClientConfig: tlsConfig,

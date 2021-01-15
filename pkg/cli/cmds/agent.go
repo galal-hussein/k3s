@@ -14,6 +14,7 @@ type Agent struct {
 	TokenFile                string
 	ClusterSecret            string
 	ServerURL                string
+	DisableServer            bool
 	DisableLoadBalancer      bool
 	LBServerPort             int
 	ResolvConf               string
@@ -40,6 +41,7 @@ type Agent struct {
 	Labels             cli.StringSlice
 	Taints             cli.StringSlice
 	PrivateRegistry    string
+	ServerURLch        string
 }
 
 type AgentShared struct {

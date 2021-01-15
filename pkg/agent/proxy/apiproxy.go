@@ -17,10 +17,12 @@ type Proxy interface {
 	SupervisorURL() string
 	SupervisorAddresses() []string
 	APIServerURL() string
+	UpdateSupervoisorLBServer(address string) error
+	DisableProxy() error
 }
 
 func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int) (Proxy, error) {
-	p := &proxy{
+	p := proxy{
 		lbEnabled:            enabled,
 		dataDir:              dataDir,
 		initialSupervisorURL: supervisorURL,
@@ -46,7 +48,7 @@ func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int) 
 	p.fallbackSupervisorAddress = u.Host
 	p.supervisorPort = u.Port()
 
-	return p, nil
+	return &p, nil
 }
 
 type proxy struct {
@@ -60,6 +62,7 @@ type proxy struct {
 	fallbackSupervisorAddress string
 	supervisorAddresses       []string
 	supervisorLB              *loadbalancer.LoadBalancer
+	updatedSupervisorURL      string
 
 	apiServerURL     string
 	apiServerLB      *loadbalancer.LoadBalancer
@@ -124,6 +127,7 @@ func (p *proxy) SupervisorURL() string {
 }
 
 func (p *proxy) SupervisorAddresses() []string {
+	logrus.Infof("supervisor addresses: %v", p.supervisorAddresses)
 	if len(p.supervisorAddresses) > 0 {
 		return p.supervisorAddresses
 	}
@@ -132,4 +136,33 @@ func (p *proxy) SupervisorAddresses() []string {
 
 func (p *proxy) APIServerURL() string {
 	return p.apiServerURL
+}
+
+func (p *proxy) UpdateSupervoisorLBServer(address string) error {
+	if err := p.supervisorLB.Listener.Close(); err != nil {
+		return err
+	}
+	lb, err := loadbalancer.New(p.dataDir, loadbalancer.SupervisorServiceName, address, p.lbServerPort)
+	if err != nil {
+		return err
+	}
+	p.supervisorLB = lb
+	p.supervisorURL = lb.LoadBalancerServerURL()
+	p.apiServerURL = p.supervisorURL
+
+	return nil
+}
+
+func (p *proxy) DisableProxy() error {
+	if p.apiServerLB != nil {
+		if err := p.apiServerLB.Listener.Close(); err != nil {
+			return err
+		}
+	}
+	if p.supervisorLB != nil {
+		if err := p.supervisorLB.Listener.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
