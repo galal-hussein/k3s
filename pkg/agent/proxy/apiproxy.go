@@ -19,8 +19,8 @@ type Proxy interface {
 	APIServerURL() string
 }
 
-func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int) (Proxy, error) {
-	p := &proxy{
+func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int, etcdNode bool) (Proxy, error) {
+	p := proxy{
 		lbEnabled:            enabled,
 		dataDir:              dataDir,
 		initialSupervisorURL: supervisorURL,
@@ -34,6 +34,7 @@ func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int) 
 		if err != nil {
 			return nil, err
 		}
+		lb.ETCDNode = etcdNode
 		p.supervisorLB = lb
 		p.supervisorURL = lb.LoadBalancerServerURL()
 		p.apiServerURL = p.supervisorURL
@@ -46,7 +47,7 @@ func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int) 
 	p.fallbackSupervisorAddress = u.Host
 	p.supervisorPort = u.Port()
 
-	return p, nil
+	return &p, nil
 }
 
 type proxy struct {
@@ -73,15 +74,18 @@ func (p *proxy) Update(addresses []string) {
 	if p.apiServerEnabled {
 		supervisorAddresses = p.setSupervisorPort(supervisorAddresses)
 	}
-
+	logrus.Info(apiServerAddresses)
+	logrus.Info(supervisorAddresses)
+	logrus.Infof("apiserverlb %#v supervisorlb %#v", p.apiServerLB, p.supervisorLB)
 	if p.apiServerLB != nil {
 		p.apiServerLB.Update(apiServerAddresses)
 	}
 	if p.supervisorLB != nil {
 		p.supervisorLB.Update(supervisorAddresses)
 	}
-
+	logrus.Infof("supervisor address in update: %v", supervisorAddresses)
 	p.supervisorAddresses = supervisorAddresses
+	logrus.Infof("supervisor address in proxy: %v", p.supervisorAddresses)
 }
 
 func (p *proxy) setSupervisorPort(addresses []string) []string {
@@ -108,7 +112,11 @@ func (p *proxy) StartAPIServerProxy(port int) error {
 	p.apiServerEnabled = true
 
 	if p.lbEnabled {
-		lb, err := loadbalancer.New(p.dataDir, loadbalancer.APIServerServiceName, p.apiServerURL, p.lbServerPort)
+		lbServerPort := p.lbServerPort
+		if lbServerPort != 0 {
+			lbServerPort = lbServerPort + 1
+		}
+		lb, err := loadbalancer.New(p.dataDir, loadbalancer.APIServerServiceName, p.apiServerURL, lbServerPort)
 		if err != nil {
 			return err
 		}

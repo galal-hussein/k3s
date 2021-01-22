@@ -27,6 +27,8 @@ type LoadBalancer struct {
 	randomServers         []string
 	currentServerAddress  string
 	nextServerIndex       int
+	Listener              net.Listener
+	ETCDNode              bool
 }
 
 var (

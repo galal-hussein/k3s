@@ -259,6 +259,17 @@ func defaults(config *config.Control) {
 			config.APIServerPort = 6444
 		}
 	}
+	logrus.Info(config.APIServerPort)
+	logrus.Info(config.SupervisorPort)
+	logrus.Info(config.HTTPSPort)
+	logrus.Info(config.DisableServer)
+	if config.DisableServer {
+		if config.SupervisorPort != config.HTTPSPort {
+			config.APIServerPort = config.APIServerPort + 1
+			logrus.Info("chaning")
+			logrus.Info(config.APIServerPort)
+		}
+	}
 
 	if config.DataDir == "" {
 		config.DataDir = "./management-state"
@@ -517,6 +528,7 @@ func genClientCerts(config *config.Control, runtime *config.ControlRuntime) erro
 
 	var certGen bool
 	apiEndpoint := fmt.Sprintf("https://127.0.0.1:%d", config.APIServerPort)
+	logrus.Info(config.APIServerPort)
 
 	certGen, err = factory("system:admin", []string{"system:masters"}, runtime.ClientAdminCert, runtime.ClientAdminKey)
 	if err != nil {

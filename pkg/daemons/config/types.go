@@ -37,6 +37,7 @@ type Node struct {
 	AgentConfig              Agent
 	CACerts                  []byte
 	Certificate              *tls.Certificate
+	ServerHTTPSPort          int
 }
 
 type Containerd struct {

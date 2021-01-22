@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,11 +91,11 @@ func run(ctx context.Context, cfg cmds.Agent, proxy proxy.Proxy) error {
 		}
 	}
 
-	if err := tunnel.Setup(ctx, nodeConfig, proxy); err != nil {
+	if err := agent.Agent(&nodeConfig.AgentConfig); err != nil {
 		return err
 	}
 
-	if err := agent.Agent(&nodeConfig.AgentConfig); err != nil {
+	if err := setupTunnel(ctx, nodeConfig, &cfg, proxy); err != nil {
 		return err
 	}
 
@@ -148,7 +149,7 @@ func Run(ctx context.Context, cfg cmds.Agent) error {
 		return err
 	}
 
-	proxy, err := proxy.NewAPIProxy(!cfg.DisableLoadBalancer, agentDir, cfg.ServerURL, cfg.LBServerPort)
+	proxy, err := proxy.NewAPIProxy(!cfg.DisableLoadBalancer, cfg.DataDir, cfg.ServerURL, cfg.LBServerPort, cfg.DisableServer)
 	if err != nil {
 		return err
 	}
@@ -299,4 +300,25 @@ func updateAddressLabels(agentConfig *daemonconfig.Agent, nodeLabels map[string]
 
 	result = labels.Merge(nodeLabels, result)
 	return result, !equality.Semantic.DeepEqual(nodeLabels, result)
+}
+
+func setupTunnel(ctx context.Context, nodeConfig *daemonconfig.Node, cfg *cmds.Agent, proxy proxy.Proxy) error {
+	if cfg.DisableServer {
+		for {
+			time.Sleep(5 * time.Second)
+			if cfg.ServerURLch != "" {
+				cfg.ServerURL = cfg.ServerURLch
+				u, err := url.Parse(cfg.ServerURL)
+				if err != nil {
+					logrus.Warn(err)
+					continue
+				}
+
+				proxy.Update([]string{fmt.Sprintf("%s:%d", u.Hostname(), nodeConfig.ServerHTTPSPort)})
+				break
+			}
+		}
+	}
+
+	return tunnel.Setup(ctx, nodeConfig, proxy)
 }

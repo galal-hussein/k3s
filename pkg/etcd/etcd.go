@@ -66,7 +66,7 @@ const (
 	endpoint            = "https://127.0.0.1:2379"
 	testTimeout         = time.Second * 10
 	manageTickerTime    = time.Second * 15
-	learnerMaxStallTime = time.Minute * 1
+	learnerMaxStallTime = time.Minute * 5
 
 	// defaultDialTimeout is intentionally short so that connections timeout within the testTimeout defined above
 	defaultDialTimeout = 2 * time.Second
