@@ -28,6 +28,7 @@ type LoadBalancer struct {
 	currentServerAddress  string
 	nextServerIndex       int
 	Listener              net.Listener
+	ETCDNode              bool
 }
 
 var (

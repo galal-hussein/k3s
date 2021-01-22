@@ -3,7 +3,9 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,33 +91,12 @@ func run(ctx context.Context, cfg *cmds.Agent, proxy proxy.Proxy) error {
 		}
 	}
 
-	if cfg.DisableServer {
-		if err := proxy.DisableProxy(); err != nil {
-			return err
-		}
-	}
-
 	if err := agent.Agent(&nodeConfig.AgentConfig); err != nil {
 		return err
 	}
 
-	if err := tunnel.Setup(ctx, nodeConfig, proxy); err != nil {
+	if err := setupTunnel(ctx, nodeConfig, cfg, proxy); err != nil {
 		return err
-	}
-
-	if cfg.DisableServer {
-		var err error
-		for {
-			time.Sleep(5 * time.Second)
-			if cfg.ServerURLch != "" {
-				logrus.Infof("starting a new proxy")
-				proxy, err = lbproxy.NewAPIProxy(!cfg.DisableLoadBalancer, cfg.DataDir, cfg.ServerURLch, cfg.LBServerPort)
-				if err != nil {
-					return err
-				}
-				break
-			}
-		}
 	}
 
 	coreClient, err := coreClient(nodeConfig.AgentConfig.KubeConfigKubelet)
@@ -168,7 +149,7 @@ func Run(ctx context.Context, cfg *cmds.Agent) error {
 		return err
 	}
 
-	proxy, err := lbproxy.NewAPIProxy(!cfg.DisableLoadBalancer, cfg.DataDir, cfg.ServerURL, cfg.LBServerPort)
+	proxy, err := lbproxy.NewAPIProxy(!cfg.DisableLoadBalancer, cfg.DataDir, cfg.ServerURL, cfg.LBServerPort, cfg.DisableServer)
 	if err != nil {
 		return err
 	}
@@ -291,4 +272,25 @@ func updateAddressLabels(agentConfig *daemonconfig.Agent, nodeLabels map[string]
 
 	result = labels.Merge(nodeLabels, result)
 	return result, !equality.Semantic.DeepEqual(nodeLabels, result)
+}
+
+func setupTunnel(ctx context.Context, nodeConfig *daemonconfig.Node, cfg *cmds.Agent, proxy proxy.Proxy) error {
+	if cfg.DisableServer {
+		for {
+			time.Sleep(5 * time.Second)
+			if cfg.ServerURLch != "" {
+				cfg.ServerURL = cfg.ServerURLch
+				u, err := url.Parse(cfg.ServerURL)
+				if err != nil {
+					logrus.Warn(err)
+					continue
+				}
+
+				proxy.Update([]string{fmt.Sprintf("%s:%d", u.Hostname(), nodeConfig.ServerHTTPSPort)})
+				break
+			}
+		}
+	}
+
+	return tunnel.Setup(ctx, nodeConfig, proxy)
 }

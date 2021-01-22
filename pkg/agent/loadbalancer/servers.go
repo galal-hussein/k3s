@@ -4,12 +4,25 @@ import (
 	"errors"
 	"math/rand"
 	"reflect"
+	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 func (lb *LoadBalancer) setServers(serverAddresses []string) bool {
 	serverAddresses, hasOriginalServer := sortServers(serverAddresses, lb.originalServerAddress)
+	logrus.Info(serverAddresses)
 	if len(serverAddresses) == 0 {
 		return false
+	}
+	logrus.Info(lb.ETCDNode)
+	if lb.ETCDNode {
+		logrus.Info("ETCDNODEEEEEEEE lb")
+		for i, address := range serverAddresses {
+			if strings.Contains(address, "127.0.0.1") {
+				serverAddresses = append(serverAddresses[:i], serverAddresses[i+1:]...)
+			}
+		}
 	}
 
 	lb.mutex.Lock()

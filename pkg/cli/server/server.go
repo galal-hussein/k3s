@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	lbServerPort         = 6666
+	lbServerPort         = 6444
 	etcdRoleName         = "etcd"
 	controlPlaneRoleName = "controlplane"
 	maxRoleCount         = 2
@@ -128,10 +128,13 @@ func run(app *cli.Context, cfg *cmds.Server) error {
 	if err := setServerRoleConfig(&serverConfig, cfg.Role); err != nil {
 		return errors.Wrap(err, "failed to set server role config")
 	}
+	serverConfig.ControlConfig.DisableServer = serverConfig.DisableServer
+	serverConfig.ControlConfig.DisableETCD = serverConfig.DisableETCD
 
 	if serverConfig.DisableServer {
 		serverConfig.ControlConfig.APIServerPort = lbServerPort
 	}
+
 	if cfg.ClusterResetRestorePath != "" && !cfg.ClusterReset {
 		return errors.New("invalid flag use. --cluster-reset required with --cluster-reset-restore-path")
 	}
@@ -304,26 +307,7 @@ func run(app *cli.Context, cfg *cmds.Server) error {
 	agentConfig.Rootless = cfg.Rootless
 
 	if serverConfig.DisableServer {
-		agentConfig.LBServerPort = lbServerPort
-		agentConfig.Taints = append(agentConfig.Taints, "node-role.kubernetes.io/etcd:NoExecute")
-		agentConfig.DisableServer = true
-		// start a thread to check for the server ip if set from etcd
-		go func() {
-			for {
-				serverIP, serverPort, err := etcd.GetServerURLFromETCD(ctx, &serverConfig.ControlConfig)
-				if err != nil {
-					logrus.Warn(err)
-					select {
-					case <-ctx.Done():
-						return
-					case <-time.After(5 * time.Second):
-					}
-					continue
-				}
-				agentConfig.ServerURLch = fmt.Sprintf("https://%s:%d", serverIP, serverPort)
-				break
-			}
-		}()
+		getServerURLFromEtcd(ctx, &serverConfig, &agentConfig)
 	}
 
 	return agent.Run(ctx, &agentConfig)
@@ -379,4 +363,35 @@ func setServerRoleConfig(cfg *server.Config, roles []string) error {
 		cfg.ControlConfig.ClusterInit = true
 	}
 	return nil
+}
+
+func getServerURLFromEtcd(ctx context.Context, serverConfig *server.Config, agentConfig *cmds.Agent) {
+	// setting LBServerPort to a prespecified port to initalize the kubeconfigs with the right address
+	agentConfig.LBServerPort = lbServerPort
+	agentConfig.Taints = append(agentConfig.Taints, "node-role.kubernetes.io/etcd:NoExecute")
+	agentConfig.DisableServer = true
+	// start a thread to check for the server ip if set from etcd
+	if serverConfig.ControlConfig.HTTPSPort != serverConfig.ControlConfig.SupervisorPort {
+		go setServerURLStub(ctx, serverConfig, agentConfig)
+		return
+	}
+	setServerURLStub(ctx, serverConfig, agentConfig)
+	agentConfig.ServerURL = agentConfig.ServerURLch
+}
+
+func setServerURLStub(ctx context.Context, serverConfig *server.Config, agentConfig *cmds.Agent) {
+	for {
+		serverIP, serverPort, err := etcd.GetServerURLFromETCD(ctx, &serverConfig.ControlConfig)
+		if err != nil {
+			logrus.Warn(err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(5 * time.Second):
+			}
+			continue
+		}
+		agentConfig.ServerURLch = fmt.Sprintf("https://%s:%d", serverIP, serverPort)
+		break
+	}
 }

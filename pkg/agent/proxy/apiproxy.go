@@ -17,11 +17,11 @@ type Proxy interface {
 	SupervisorURL() string
 	SupervisorAddresses() []string
 	APIServerURL() string
-	UpdateSupervoisorLBServer(address string) error
 	DisableProxy() error
+	IsAPIServerProxyEnabled() bool
 }
 
-func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int) (Proxy, error) {
+func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int, etcdNode bool) (Proxy, error) {
 	p := proxy{
 		lbEnabled:            enabled,
 		dataDir:              dataDir,
@@ -36,6 +36,7 @@ func NewAPIProxy(enabled bool, dataDir, supervisorURL string, lbServerPort int) 
 		if err != nil {
 			return nil, err
 		}
+		lb.ETCDNode = etcdNode
 		p.supervisorLB = lb
 		p.supervisorURL = lb.LoadBalancerServerURL()
 		p.apiServerURL = p.supervisorURL
@@ -76,15 +77,18 @@ func (p *proxy) Update(addresses []string) {
 	if p.apiServerEnabled {
 		supervisorAddresses = p.setSupervisorPort(supervisorAddresses)
 	}
-
+	logrus.Info(apiServerAddresses)
+	logrus.Info(supervisorAddresses)
+	logrus.Infof("apiserverlb %#v supervisorlb %#v", p.apiServerLB, p.supervisorLB)
 	if p.apiServerLB != nil {
 		p.apiServerLB.Update(apiServerAddresses)
 	}
 	if p.supervisorLB != nil {
 		p.supervisorLB.Update(supervisorAddresses)
 	}
-
+	logrus.Infof("supervisor address in update: %v", supervisorAddresses)
 	p.supervisorAddresses = supervisorAddresses
+	logrus.Infof("supervisor address in proxy: %v", p.supervisorAddresses)
 }
 
 func (p *proxy) setSupervisorPort(addresses []string) []string {
@@ -111,7 +115,11 @@ func (p *proxy) StartAPIServerProxy(port int) error {
 	p.apiServerEnabled = true
 
 	if p.lbEnabled {
-		lb, err := loadbalancer.New(p.dataDir, loadbalancer.APIServerServiceName, p.apiServerURL, p.lbServerPort)
+		lbServerPort := p.lbServerPort
+		if lbServerPort != 0 {
+			lbServerPort = lbServerPort + 1
+		}
+		lb, err := loadbalancer.New(p.dataDir, loadbalancer.APIServerServiceName, p.apiServerURL, lbServerPort)
 		if err != nil {
 			return err
 		}
@@ -138,21 +146,6 @@ func (p *proxy) APIServerURL() string {
 	return p.apiServerURL
 }
 
-func (p *proxy) UpdateSupervoisorLBServer(address string) error {
-	if err := p.supervisorLB.Listener.Close(); err != nil {
-		return err
-	}
-	lb, err := loadbalancer.New(p.dataDir, loadbalancer.SupervisorServiceName, address, p.lbServerPort)
-	if err != nil {
-		return err
-	}
-	p.supervisorLB = lb
-	p.supervisorURL = lb.LoadBalancerServerURL()
-	p.apiServerURL = p.supervisorURL
-
-	return nil
-}
-
 func (p *proxy) DisableProxy() error {
 	if p.apiServerLB != nil {
 		if err := p.apiServerLB.Listener.Close(); err != nil {
@@ -165,4 +158,8 @@ func (p *proxy) DisableProxy() error {
 		}
 	}
 	return nil
+}
+
+func (p *proxy) IsAPIServerProxyEnabled() bool {
+	return p.apiServerEnabled
 }
