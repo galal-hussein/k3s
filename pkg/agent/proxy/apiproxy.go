@@ -76,16 +76,13 @@ func (p *proxy) Update(addresses []string) {
 	}
 	logrus.Info(apiServerAddresses)
 	logrus.Info(supervisorAddresses)
-	logrus.Infof("apiserverlb %#v supervisorlb %#v", p.apiServerLB, p.supervisorLB)
 	if p.apiServerLB != nil {
 		p.apiServerLB.Update(apiServerAddresses)
 	}
 	if p.supervisorLB != nil {
 		p.supervisorLB.Update(supervisorAddresses)
 	}
-	logrus.Infof("supervisor address in update: %v", supervisorAddresses)
 	p.supervisorAddresses = supervisorAddresses
-	logrus.Infof("supervisor address in proxy: %v", p.supervisorAddresses)
 }
 
 func (p *proxy) setSupervisorPort(addresses []string) []string {

@@ -141,7 +141,6 @@ func (c *Cluster) setupEtcdProxy(ctx context.Context, etcdProxy etcd.Proxy) {
 				logrus.Warnf("failed to get member urls %v", err)
 				continue
 			}
-			logrus.Info(newAddresses)
 			etcdProxy.Update(newAddresses)
 
 		}

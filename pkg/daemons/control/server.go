@@ -259,17 +259,11 @@ func defaults(config *config.Control) {
 			config.APIServerPort = 6444
 		}
 	}
-	logrus.Info(config.APIServerPort)
-	logrus.Info(config.SupervisorPort)
-	logrus.Info(config.HTTPSPort)
-	logrus.Info(config.DisableServer)
-	if config.DisableServer {
-		if config.SupervisorPort != config.HTTPSPort {
-			config.APIServerPort = config.APIServerPort + 1
-			logrus.Info("chaning")
-			logrus.Info(config.APIServerPort)
-		}
-	}
+	// if config.DisableServer {
+	// 	if config.SupervisorPort != config.HTTPSPort {
+	// 		config.APIServerPort = config.APIServerPort + 1
+	// 	}
+	// }
 
 	if config.DataDir == "" {
 		config.DataDir = "./management-state"
