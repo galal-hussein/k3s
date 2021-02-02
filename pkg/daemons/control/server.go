@@ -98,13 +98,19 @@ func Server(ctx context.Context, cfg *config.Control) error {
 	cfg.Runtime.Tunnel = setupTunnel()
 	util.DisableProxyHostnameCheck = true
 
-	auth, handler, err := apiServer(ctx, cfg, runtime)
-	if err != nil {
-		return err
-	}
+	var auth authenticator.Request
+	var handler http.Handler
+	var err error
 
-	if err := waitForAPIServerInBackground(ctx, runtime); err != nil {
-		return err
+	if !cfg.DisableKubeAPIServer {
+		auth, handler, err = apiServer(ctx, cfg, runtime)
+		if err != nil {
+			return err
+		}
+
+		if err := waitForAPIServerInBackground(ctx, runtime); err != nil {
+			return err
+		}
 	}
 
 	basicAuth, err := basicAuthenticator(runtime.PasswdFile)
@@ -115,14 +121,15 @@ func Server(ctx context.Context, cfg *config.Control) error {
 	runtime.Authenticator = combineAuthenticators(basicAuth, auth)
 	runtime.Handler = handler
 
-	if !cfg.NoScheduler {
+	if !cfg.DisableKubeScheduler {
 		if err := scheduler(cfg, runtime); err != nil {
 			return err
 		}
 	}
-
-	if err := controllerManager(cfg, runtime); err != nil {
-		return err
+	if !cfg.DisableKubeControllerManager {
+		if err := controllerManager(cfg, runtime); err != nil {
+			return err
+		}
 	}
 
 	if !cfg.DisableCCM {
@@ -348,6 +355,12 @@ func prepare(ctx context.Context, config *config.Control, runtime *config.Contro
 
 	if err := cluster.Bootstrap(ctx); err != nil {
 		return err
+	}
+
+	if config.DisableETCD {
+		if err := cluster.RegisterServer(ctx); err != nil {
+			return err
+		}
 	}
 
 	if err := genCerts(config, runtime); err != nil {

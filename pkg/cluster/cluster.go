@@ -12,6 +12,8 @@ import (
 	"github.com/rancher/k3s/pkg/cluster/managed"
 	"github.com/rancher/k3s/pkg/daemons/config"
 	"github.com/rancher/k3s/pkg/etcd"
+	"github.com/rancher/k3s/pkg/version"
+	"github.com/sirupsen/logrus"
 )
 
 type Cluster struct {
@@ -111,4 +113,21 @@ func New(config *config.Control) *Cluster {
 		config:  config,
 		runtime: config.Runtime,
 	}
+}
+
+func (c *Cluster) RegisterServer(ctx context.Context) error {
+	data := url.Values{}
+	serverIP, err := etcd.GetAdvertiseAddress("")
+	if err != nil {
+		return err
+	}
+	data.Set("server-url", serverIP)
+	logrus.Info(data)
+	content, err := clientaccess.Post("/v1-"+version.Program+"/server-register", c.clientAccessInfo, data)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("server registered: %s", content)
+
+	return nil
 }

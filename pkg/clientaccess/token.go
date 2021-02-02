@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -184,6 +185,16 @@ func Get(path string, info *Info) ([]byte, error) {
 	return get(u.String(), GetHTTPClient(info.CACerts), info.Username, info.Password)
 }
 
+// Post makes a post request to a subpath of info's BaseURL
+func Post(path string, info *Info, data url.Values) ([]byte, error) {
+	u, err := url.Parse(info.BaseURL)
+	if err != nil {
+		return nil, err
+	}
+	u.Path = path
+	return post(u.String(), GetHTTPClient(info.CACerts), info.Username, info.Password, data)
+}
+
 // setServer sets the BaseURL and CACerts fields of the Info by connecting to the server
 // and storing the CA bundle.
 func (info *Info) setServer(server string) error {
@@ -258,6 +269,33 @@ func get(u string, client *http.Client, username, password string) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
+
+	if username != "" {
+		req.SetBasicAuth(username, password)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s: %s", u, resp.Status)
+	}
+
+	return ioutil.ReadAll(resp.Body)
+}
+
+// post makes a post request to a url using a provided client, username, and password,
+// returning the response body.
+func post(u string, client *http.Client, username, password string, data url.Values) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodPost, u, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 
 	if username != "" {
 		req.SetBasicAuth(username, password)

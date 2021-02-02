@@ -38,14 +38,6 @@ func router(ctx context.Context, config *Config) http.Handler {
 	authed := mux.NewRouter()
 	authed.Use(authMiddleware(serverConfig, version.Program+":agent"))
 	authed.NotFoundHandler = serverConfig.Runtime.Handler
-	if serverConfig.DisableServer {
-		authed.Path("/apis").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		}))
-		authed.Path("/api").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		}))
-	}
 	authed.Path(prefix + "/serving-kubelet.crt").Handler(servingKubeletCert(serverConfig, serverConfig.Runtime.ServingKubeletKey, nodeAuth))
 	authed.Path(prefix + "/client-kubelet.crt").Handler(clientKubeletCert(serverConfig, serverConfig.Runtime.ClientKubeletKey, nodeAuth))
 	authed.Path(prefix + "/client-kube-proxy.crt").Handler(fileHandler(serverConfig.Runtime.ClientKubeProxyCert, serverConfig.Runtime.ClientKubeProxyKey))
@@ -66,6 +58,7 @@ func router(ctx context.Context, config *Config) http.Handler {
 	if serverConfig.Runtime.HTTPBootstrap {
 		serverAuthed.Path(prefix + "/server-bootstrap").Handler(bootstrap.Handler(&serverConfig.Runtime.ControlRuntimeBootstrap))
 	}
+	serverAuthed.Path(prefix + "/server-register").Handler(registerServerHandler(serverConfig))
 
 	staticDir := filepath.Join(serverConfig.DataDir, "static")
 	router := mux.NewRouter()
@@ -370,4 +363,22 @@ func verifyLocalPassword(ctx context.Context, config *Config, once *sync.Once, n
 	logrus.Debugf("password verified locally for node '%s'", nodeName)
 
 	return nodeName, http.StatusOK, nil
+}
+
+func registerServerHandler(serverConfig *config.Control) http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if req.TLS == nil {
+			resp.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if err := req.ParseForm(); err != nil {
+			return
+		}
+		logrus.Infof("%#v", *req)
+		serverConfig.JoinURL = req.FormValue("server-url")
+
+		resp.Header().Set("content-type", "application/json")
+		json.NewEncoder(resp).Encode("server registered with IP:" + serverConfig.JoinURL)
+	})
 }

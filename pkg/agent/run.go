@@ -91,11 +91,11 @@ func run(ctx context.Context, cfg cmds.Agent, proxy proxy.Proxy) error {
 		}
 	}
 
-	if err := agent.Agent(&nodeConfig.AgentConfig); err != nil {
+	if err := setupTunnel(ctx, nodeConfig, &cfg, proxy); err != nil {
 		return err
 	}
 
-	if err := setupTunnel(ctx, nodeConfig, &cfg, proxy); err != nil {
+	if err := agent.Agent(&nodeConfig.AgentConfig); err != nil {
 		return err
 	}
 

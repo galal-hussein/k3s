@@ -56,7 +56,7 @@ func StartServer(ctx context.Context, config *Config) error {
 	if err := setNoProxyEnv(&config.ControlConfig); err != nil {
 		return err
 	}
-	config.ControlConfig.DisableETCD = config.DisableETCD
+
 	if err := control.Server(ctx, &config.ControlConfig); err != nil {
 		return errors.Wrap(err, "starting kubernetes")
 	}

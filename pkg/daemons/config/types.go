@@ -97,46 +97,47 @@ type Control struct {
 	// The port which custom k3s API runs on
 	SupervisorPort int
 	// The port which kube-apiserver runs on
-	APIServerPort            int
-	APIServerBindAddress     string
-	AgentToken               string `json:"-"`
-	Token                    string `json:"-"`
-	ClusterIPRange           *net.IPNet
-	ServiceIPRange           *net.IPNet
-	ClusterDNS               net.IP
-	ClusterDomain            string
-	NoCoreDNS                bool
-	KubeConfigOutput         string
-	KubeConfigMode           string
-	DataDir                  string
-	Skips                    map[string]bool
-	Disables                 map[string]bool
-	Datastore                endpoint.Config
-	NoScheduler              bool
-	ExtraAPIArgs             []string
-	ExtraControllerArgs      []string
-	ExtraCloudControllerArgs []string
-	ExtraSchedulerAPIArgs    []string
-	NoLeaderElect            bool
-	JoinURL                  string
-	FlannelBackend           string
-	IPSECPSK                 string
-	DefaultLocalStoragePath  string
-	DisableCCM               bool
-	DisableNPC               bool
-	DisableKubeProxy         bool
-	DisableServer            bool
-	DisableETCD              bool
-	ClusterInit              bool
-	ClusterReset             bool
-	ClusterResetRestorePath  string
-	EncryptSecrets           bool
-	TLSMinVersion            uint16
-	TLSCipherSuites          []uint16
-	EtcdDisableSnapshots     bool
-	EtcdSnapshotDir          string
-	EtcdSnapshotCron         string
-	EtcdSnapshotRetention    int
+	APIServerPort                int
+	APIServerBindAddress         string
+	AgentToken                   string `json:"-"`
+	Token                        string `json:"-"`
+	ClusterIPRange               *net.IPNet
+	ServiceIPRange               *net.IPNet
+	ClusterDNS                   net.IP
+	ClusterDomain                string
+	NoCoreDNS                    bool
+	KubeConfigOutput             string
+	KubeConfigMode               string
+	DataDir                      string
+	Skips                        map[string]bool
+	Disables                     map[string]bool
+	Datastore                    endpoint.Config
+	ExtraAPIArgs                 []string
+	ExtraControllerArgs          []string
+	ExtraCloudControllerArgs     []string
+	ExtraSchedulerAPIArgs        []string
+	NoLeaderElect                bool
+	JoinURL                      string
+	FlannelBackend               string
+	IPSECPSK                     string
+	DefaultLocalStoragePath      string
+	DisableCCM                   bool
+	DisableNPC                   bool
+	DisableKubeProxy             bool
+	DisableKubeAPIServer         bool
+	DisableKubeControllerManager bool
+	DisableKubeScheduler         bool
+	DisableETCD                  bool
+	ClusterInit                  bool
+	ClusterReset                 bool
+	ClusterResetRestorePath      string
+	EncryptSecrets               bool
+	TLSMinVersion                uint16
+	TLSCipherSuites              []uint16
+	EtcdDisableSnapshots         bool
+	EtcdSnapshotDir              string
+	EtcdSnapshotCron             string
+	EtcdSnapshotRetention        int
 
 	BindAddress string
 	SANs        []string

@@ -16,7 +16,7 @@ type Agent struct {
 	ServerURL                string
 	ServerURLch              string
 	DisableLoadBalancer      bool
-	DisableServer            bool
+	ETCDAgent                bool
 	LBServerPort             int
 	ResolvConf               string
 	DataDir                  string

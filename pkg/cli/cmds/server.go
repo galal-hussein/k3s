@@ -28,42 +28,45 @@ type Server struct {
 	// The port which custom k3s API runs on
 	SupervisorPort int
 	// The port which kube-apiserver runs on
-	APIServerPort            int
-	APIServerBindAddress     string
-	DataDir                  string
-	DisableAgent             bool
-	KubeConfigOutput         string
-	KubeConfigMode           string
-	TLSSan                   cli.StringSlice
-	BindAddress              string
-	ExtraAPIArgs             cli.StringSlice
-	ExtraSchedulerArgs       cli.StringSlice
-	ExtraControllerArgs      cli.StringSlice
-	ExtraCloudControllerArgs cli.StringSlice
-	Rootless                 bool
-	DatastoreEndpoint        string
-	DatastoreCAFile          string
-	DatastoreCertFile        string
-	DatastoreKeyFile         string
-	AdvertiseIP              string
-	AdvertisePort            int
-	DisableScheduler         bool
-	ServerURL                string
-	FlannelBackend           string
-	DefaultLocalStoragePath  string
-	DisableCCM               bool
-	DisableNPC               bool
-	DisableKubeProxy         bool
-	ClusterInit              bool
-	ClusterReset             bool
-	ClusterResetRestorePath  string
-	EncryptSecrets           bool
-	StartupHooks             []func(context.Context, <-chan struct{}, string) error
-	EtcdDisableSnapshots     bool
-	EtcdSnapshotDir          string
-	EtcdSnapshotCron         string
-	EtcdSnapshotRetention    int
-	Role                     cli.StringSlice
+	APIServerPort                int
+	APIServerBindAddress         string
+	DataDir                      string
+	DisableAgent                 bool
+	KubeConfigOutput             string
+	KubeConfigMode               string
+	TLSSan                       cli.StringSlice
+	BindAddress                  string
+	ExtraAPIArgs                 cli.StringSlice
+	ExtraSchedulerArgs           cli.StringSlice
+	ExtraControllerArgs          cli.StringSlice
+	ExtraCloudControllerArgs     cli.StringSlice
+	Rootless                     bool
+	DatastoreEndpoint            string
+	DatastoreCAFile              string
+	DatastoreCertFile            string
+	DatastoreKeyFile             string
+	AdvertiseIP                  string
+	AdvertisePort                int
+	DisableScheduler             bool
+	ServerURL                    string
+	FlannelBackend               string
+	DefaultLocalStoragePath      string
+	DisableCCM                   bool
+	DisableNPC                   bool
+	DisableKubeProxy             bool
+	DisableKubeAPIServer         bool
+	DisableKubeControllerManager bool
+	DisableKubeScheduler         bool
+	DisableETCD                  bool
+	ClusterInit                  bool
+	ClusterReset                 bool
+	ClusterResetRestorePath      string
+	EncryptSecrets               bool
+	StartupHooks                 []func(context.Context, <-chan struct{}, string) error
+	EtcdDisableSnapshots         bool
+	EtcdSnapshotDir              string
+	EtcdSnapshotCron             string
+	EtcdSnapshotRetention        int
 }
 
 var ServerConfig Server
@@ -262,10 +265,25 @@ func NewServerCommand(action func(*cli.Context) error) cli.Command {
 				Usage:       "(components) Disable " + version.Program + " default network policy controller",
 				Destination: &ServerConfig.DisableNPC,
 			},
-			cli.StringSliceFlag{
-				Name:  "role",
-				Usage: "(components) Specify the role of the server process (valid items: controlplane etcd or controlplane and etcd)",
-				Value: &ServerConfig.Role,
+			cli.BoolFlag{
+				Name:        "disable-api-server",
+				Usage:       "(components) Disable running api server",
+				Destination: &ServerConfig.DisableKubeAPIServer,
+			},
+			cli.BoolFlag{
+				Name:        "disable-kube-scheduler",
+				Usage:       "(components) Disable running kube-scheduler",
+				Destination: &ServerConfig.DisableKubeScheduler,
+			},
+			cli.BoolFlag{
+				Name:        "disable-kube-controller-manager",
+				Usage:       "(components) Disable running kube-controller-manager",
+				Destination: &ServerConfig.DisableKubeControllerManager,
+			},
+			cli.BoolFlag{
+				Name:        "disable-etcd",
+				Usage:       "(components) Disable running etcd",
+				Destination: &ServerConfig.DisableETCD,
 			},
 			NodeNameFlag,
 			WithNodeIDFlag,
