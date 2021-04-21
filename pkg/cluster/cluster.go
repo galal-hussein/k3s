@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/k3s-io/kine/pkg/endpoint"
 	"github.com/pkg/errors"
@@ -53,9 +54,27 @@ func (c *Cluster) Start(ctx context.Context) (<-chan struct{}, error) {
 			clientURL.Host = clientURL.Hostname() + ":2379"
 			clientURLs = append(clientURLs, clientURL.String())
 		}
-		etcdProxy, err := etcd.NewETCDProxy(ctx, true, c.config.DataDir, clientURLs[0])
-		if err != nil {
-			return nil, err
+
+		t := time.NewTicker(5 * time.Second)
+		defer t.Stop()
+		var etcdProxy etcd.Proxy
+		for range t.C {
+			proxyErr := make(chan error, 0)
+			proxySetup := make(chan bool)
+			go func() {
+				etcdProxy, err = etcd.NewETCDProxy(ctx, true, c.config.DataDir, clientURLs[0])
+				if err != nil {
+					proxyErr <- err
+				}
+				proxySetup <- true
+			}()
+			select {
+			case pErr := <-proxyErr:
+				logrus.Warnf("failed to setup etcd proxy: %v", pErr)
+				continue
+			case <-proxySetup:
+				break
+			}
 		}
 		c.setupEtcdProxy(ctx, etcdProxy)
 
