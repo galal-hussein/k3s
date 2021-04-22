@@ -59,22 +59,13 @@ func (c *Cluster) Start(ctx context.Context) (<-chan struct{}, error) {
 		defer t.Stop()
 		var etcdProxy etcd.Proxy
 		for range t.C {
-			proxyErr := make(chan error, 0)
-			proxySetup := make(chan bool)
-			go func() {
-				etcdProxy, err = etcd.NewETCDProxy(ctx, true, c.config.DataDir, clientURLs[0])
-				if err != nil {
-					proxyErr <- err
-				}
-				proxySetup <- true
-			}()
-			select {
-			case pErr := <-proxyErr:
-				logrus.Warnf("failed to setup etcd proxy: %v", pErr)
+			etcdProxy, err = etcd.NewETCDProxy(ctx, true, c.config.DataDir, clientURLs[0])
+			if err != nil {
+				logrus.Warnf("failed to setup etcd proxy: %v", err)
 				continue
-			case <-proxySetup:
-				break
 			}
+			break
+
 		}
 		c.setupEtcdProxy(ctx, etcdProxy)
 
