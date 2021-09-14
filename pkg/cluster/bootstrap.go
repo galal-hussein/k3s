@@ -58,6 +58,11 @@ func (c *Cluster) shouldBootstrapLoad(ctx context.Context) (bool, error) {
 			// due to failure to retrieve it as this will break cold cluster restart, so we ignore any errors.
 			if c.config.JoinURL != "" && c.config.Token != "" {
 				c.clientAccessInfo, _ = clientaccess.ParseAndValidateTokenForUser(c.config.JoinURL, c.config.Token, "server")
+				// verify node name for joining servers to avoid duplicates
+				_, err := c.clientAccessInfo.Get("/v1-" + version.Program + "/verify-node-name")
+				if err != nil {
+					return false, err
+				}
 			}
 			return false, nil
 		} else if c.config.JoinURL == "" {

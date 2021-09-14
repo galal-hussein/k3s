@@ -26,7 +26,7 @@ func getSecretName(nodeName string) string {
 	return strings.ToLower(nodeName + ".node-password." + version.Program)
 }
 
-func verifyHash(secretClient coreclient.SecretClient, nodeName, pass string) error {
+func VerifyHash(secretClient coreclient.SecretClient, nodeName, pass string) error {
 	name := getSecretName(nodeName)
 	secret, err := secretClient.Get(metav1.NamespaceSystem, name, metav1.GetOptions{})
 	if err != nil {
@@ -43,7 +43,7 @@ func verifyHash(secretClient coreclient.SecretClient, nodeName, pass string) err
 
 // Ensure will verify a node-password secret if it exists, otherwise it will create one
 func Ensure(secretClient coreclient.SecretClient, nodeName, pass string) error {
-	if err := verifyHash(secretClient, nodeName, pass); !apierrors.IsNotFound(err) {
+	if err := VerifyHash(secretClient, nodeName, pass); !apierrors.IsNotFound(err) {
 		return err
 	}
 
@@ -62,7 +62,7 @@ func Ensure(secretClient coreclient.SecretClient, nodeName, pass string) error {
 		Data:      map[string][]byte{"hash": []byte(hash)},
 	})
 	if apierrors.IsAlreadyExists(err) {
-		return verifyHash(secretClient, nodeName, pass)
+		return VerifyHash(secretClient, nodeName, pass)
 	}
 	return err
 }

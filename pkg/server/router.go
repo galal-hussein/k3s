@@ -34,7 +34,7 @@ const (
 
 func router(ctx context.Context, config *Config, cfg *cmds.Server) http.Handler {
 	serverConfig := &config.ControlConfig
-	nodeAuth := passwordBootstrap(ctx, config)
+	nodeAuth := passwordBootstrap(ctx, config, false)
 
 	prefix := "/v1-" + version.Program
 	authed := mux.NewRouter()
@@ -61,6 +61,9 @@ func router(ctx context.Context, config *Config, cfg *cmds.Server) http.Handler 
 	if serverConfig.Runtime.HTTPBootstrap {
 		serverAuthed.Path(prefix + "/server-bootstrap").Handler(bootstrap.Handler(&serverConfig.Runtime.ControlRuntimeBootstrap))
 	}
+	// verifying node password file and making sure there isnt duplicates
+	serverNodeAuth := passwordBootstrap(ctx, config, true)
+	serverAuthed.Path(prefix + "/verify-node-name").Handler(verifyServerNodePassword(serverConfig, serverNodeAuth))
 
 	staticDir := filepath.Join(serverConfig.DataDir, "static")
 	router := mux.NewRouter()
@@ -317,7 +320,7 @@ func sendError(err error, resp http.ResponseWriter, status ...int) {
 // nodePassBootstrapper returns a node name, or http error code and error
 type nodePassBootstrapper func(req *http.Request) (string, int, error)
 
-func passwordBootstrap(ctx context.Context, config *Config) nodePassBootstrapper {
+func passwordBootstrap(ctx context.Context, config *Config, server bool) nodePassBootstrapper {
 	runtime := config.ControlConfig.Runtime
 	var secretClient coreclient.SecretClient
 	var once sync.Once
@@ -332,7 +335,9 @@ func passwordBootstrap(ctx context.Context, config *Config) nodePassBootstrapper
 			if runtime.Core != nil {
 				// initialize the client if we can
 				secretClient = runtime.Core.Core().V1().Secret()
-			} else if nodeName == os.Getenv("NODE_NAME") {
+			} else if server {
+				return nodeName, http.StatusOK, nodepassword.VerifyHash(secretClient, nodeName, nodePassword)
+			} else if nodeName == os.Getenv("NODE_NAME") && !server {
 				// or verify the password locally and ensure a secret later
 				return verifyLocalPassword(ctx, config, &once, nodeName, nodePassword)
 			} else {
@@ -393,4 +398,21 @@ func verifyLocalPassword(ctx context.Context, config *Config, once *sync.Once, n
 	logrus.Debugf("password verified locally for node '%s'", nodeName)
 
 	return nodeName, http.StatusOK, nil
+}
+
+func verifyServerNodePassword(server *config.Control, auth nodePassBootstrapper) http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if req.TLS == nil {
+			resp.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		nodeName, errCode, err := auth(req)
+		if err != nil {
+			sendError(err, resp, errCode)
+			return
+		}
+
+		resp.Write([]byte(nodeName))
+	})
 }
