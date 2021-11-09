@@ -15,7 +15,7 @@ import (
 func main() {
 	app := cmds.NewApp()
 	app.Commands = []cli.Command{
-		cmds.NewCertCommand(
+		cmds.NewCertCommand(cert.Rotate,
 			cmds.NewCertSubcommands(
 				cert.Rotate),
 		),

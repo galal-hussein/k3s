@@ -19,12 +19,13 @@ var CertCommandFlags = []cli.Flag{
 	},
 }
 
-func NewCertCommand(subcommands []cli.Command) cli.Command {
+func NewCertCommand(action func(*cli.Context) error, subcommands []cli.Command) cli.Command {
 	return cli.Command{
 		Name:            CertCommand,
 		Usage:           "Certificates management",
 		SkipFlagParsing: false,
 		SkipArgReorder:  true,
+		Action:          action,
 		Subcommands:     subcommands,
 		Flags:           CertCommandFlags,
 	}

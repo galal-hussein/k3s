@@ -37,7 +37,7 @@ func main() {
 				etcdsnapshot.Prune,
 				etcdsnapshot.Run),
 		),
-		cmds.NewCertCommand(
+		cmds.NewCertCommand(cert.Rotate,
 			cmds.NewCertSubcommands(
 				cert.Rotate),
 		),
