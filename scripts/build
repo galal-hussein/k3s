@@ -108,6 +108,7 @@ CGO_ENABLED=1 "${GO}" build -tags "$TAGS" -ldflags "$VERSIONFLAGS $LDFLAGS $STAT
 ln -s containerd ./bin/k3s-agent
 ln -s containerd ./bin/k3s-server
 ln -s containerd ./bin/k3s-etcd-snapshot
+ln -s containerd ./bin/k3s-cert
 ln -s containerd ./bin/kubectl
 ln -s containerd ./bin/crictl
 ln -s containerd ./bin/ctr
