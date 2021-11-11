@@ -3,6 +3,7 @@ package cert
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/otiai10/copy"
 	"github.com/rancher/k3s/pkg/cli/cmds"
 	"github.com/rancher/k3s/pkg/daemons/config"
+	"github.com/rancher/k3s/pkg/daemons/control/deps"
 	"github.com/rancher/k3s/pkg/datadir"
 	"github.com/rancher/k3s/pkg/server"
 	"github.com/rancher/k3s/pkg/version"
@@ -70,6 +72,9 @@ func rotate(app *cli.Context, cfg *cmds.Server) error {
 	}
 
 	serverConfig.ControlConfig.DataDir = serverDataDir
+	serverConfig.ControlConfig.Runtime = &config.ControlRuntime{}
+	deps.CreateRuntimeCertFiles(&serverConfig.ControlConfig, serverConfig.ControlConfig.Runtime)
+
 	tlsDir := filepath.Join(serverConfig.ControlConfig.DataDir, "tls")
 	tlsBackupDir := filepath.Join(serverConfig.ControlConfig.DataDir, "tls-"+strconv.Itoa(int(time.Now().Unix())))
 
@@ -82,60 +87,65 @@ func rotate(app *cli.Context, cfg *cmds.Server) error {
 	}
 	if len(cmds.ComponentList) == 0 {
 		// rotate all certs
-		return rotateAllCerts(filepath.Join(serverDataDir, "tls"), agentDataDir)
+		return rotateAllCerts(serverConfig.ControlConfig.Runtime, filepath.Join(serverDataDir, "tls"), agentDataDir)
 	}
 	certList := []string{}
 	for _, component := range cmds.ComponentList {
 		switch component {
 		case adminComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-admin.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-admin.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientAdminCert,
+				serverConfig.ControlConfig.Runtime.ClientAdminKey)
 		case apiServerComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-kube-apiserver.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-kube-apiserver.key"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "serving-kube-apiserver.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "serving-kube-apiserver.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientKubeAPICert,
+				serverConfig.ControlConfig.Runtime.ClientKubeAPIKey,
+				serverConfig.ControlConfig.Runtime.ServingKubeAPICert,
+				serverConfig.ControlConfig.Runtime.ServingKubeAPIKey)
 		case controllerManagerComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-controller.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-controller.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientControllerCert,
+				serverConfig.ControlConfig.Runtime.ClientControllerKey)
 		case schedulerComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-scheduler.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-scheduler.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientSchedulerCert,
+				serverConfig.ControlConfig.Runtime.ClientSchedulerKey)
 		case etcdComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "etcd", "server-client.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "etcd", "server-client.key"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "etcd", "peer-server-client.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "etcd", "peer-server-client.key"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "etcd", "client.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "etcd", "client.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientETCDCert,
+				serverConfig.ControlConfig.Runtime.ClientETCDKey,
+				serverConfig.ControlConfig.Runtime.ServerETCDCert,
+				serverConfig.ControlConfig.Runtime.ServerETCDKey,
+				serverConfig.ControlConfig.Runtime.PeerServerClientETCDCert,
+				serverConfig.ControlConfig.Runtime.PeerServerClientETCDKey)
 		case cloudControllerComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-"+version.Program+"-cloud-controller.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-"+version.Program+"-cloud-controller.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientCloudControllerCert,
+				serverConfig.ControlConfig.Runtime.ClientCloudControllerKey)
 		case version.Program + programControllerComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-"+version.Program+"-controller.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-"+version.Program+"-controller.key"))
-			// agent dir
-			certList = append(certList, filepath.Join(agentDataDir, "client-"+version.Program+"-controller.crt"))
-			certList = append(certList, filepath.Join(agentDataDir, "client-"+version.Program+"-controller.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientK3sControllerCert,
+				serverConfig.ControlConfig.Runtime.ClientK3sControllerKey,
+				filepath.Join(agentDataDir, "client-"+version.Program+"-controller.crt"),
+				filepath.Join(agentDataDir, "client-"+version.Program+"-controller.key"))
 		case authProxyComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-auth-proxy.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-auth-proxy.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientAuthProxyCert,
+				serverConfig.ControlConfig.Runtime.ClientAuthProxyKey)
 		case kubeletComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-kubelet.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-kubelet.key"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "serving-kubelet.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "serving-kubelet.key"))
-			// agent dir
-			certList = append(certList, filepath.Join(agentDataDir, "client-kubelet.crt"))
-			certList = append(certList, filepath.Join(agentDataDir, "client-kubelet.key"))
-			certList = append(certList, filepath.Join(agentDataDir, "serving-kubelet.crt"))
-			certList = append(certList, filepath.Join(agentDataDir, "serving-kubelet.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientKubeletKey,
+				serverConfig.ControlConfig.Runtime.ServingKubeletKey,
+				filepath.Join(agentDataDir, "client-kubelet.crt"),
+				filepath.Join(agentDataDir, "client-kubelet.key"),
+				filepath.Join(agentDataDir, "serving-kubelet.crt"),
+				filepath.Join(agentDataDir, "serving-kubelet.key"))
 		case kubeProxyComponent:
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-kube-proxy.crt"))
-			certList = append(certList, filepath.Join(serverConfig.ControlConfig.DataDir, "tls", "client-kube-proxy.key"))
-			// agent dir
-			certList = append(certList, filepath.Join(agentDataDir, "client-kube-proxy.crt"))
-			certList = append(certList, filepath.Join(agentDataDir, "client-kube-proxy.key"))
+			certList = append(certList,
+				serverConfig.ControlConfig.Runtime.ClientKubeProxyCert,
+				serverConfig.ControlConfig.Runtime.ClientKubeProxyKey,
+				filepath.Join(agentDataDir, "client-kube-proxy.crt"),
+				filepath.Join(agentDataDir, "client-kube-proxy.key"))
 		}
 	}
 
@@ -147,7 +157,16 @@ func rotate(app *cli.Context, cfg *cmds.Server) error {
 	return nil
 }
 
-func rotateAllCerts(dirs ...string) error {
+func rotateAllCerts(runtime *config.ControlRuntime, dirs ...string) error {
+	valueOfRuntime := reflect.ValueOf(runtime)
+	typeOfRuntime := valueOfRuntime.Type()
+	for i := 0; i < valueOfRuntime.NumField(); i++ {
+		if reflect.TypeOf(valueOfRuntime.Field(i).Interface()) == "string" ||
+			strings.Contains(typeOfRuntime.Field(i).Name, "CA") ||
+			strings.Contains(typeOfRuntime.Field(i).Name, "IPSECKey") {
+
+		}
+	}
 	for _, dir := range dirs {
 		err := filepath.Walk(dir,
 			func(path string, info os.FileInfo, err error) error {
