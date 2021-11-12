@@ -3,7 +3,6 @@ package cert
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -87,10 +86,12 @@ func rotate(app *cli.Context, cfg *cmds.Server) error {
 	}
 	if len(cmds.ComponentList) == 0 {
 		// rotate all certs
+		logrus.Infof("Rotating certificates for all services")
 		return rotateAllCerts(serverConfig.ControlConfig.Runtime, filepath.Join(serverDataDir, "tls"), agentDataDir)
 	}
 	certList := []string{}
 	for _, component := range cmds.ComponentList {
+		logrus.Infof("Rotating certificates for %s service", component)
 		switch component {
 		case adminComponent:
 			certList = append(certList,
@@ -146,6 +147,8 @@ func rotate(app *cli.Context, cfg *cmds.Server) error {
 				serverConfig.ControlConfig.Runtime.ClientKubeProxyKey,
 				filepath.Join(agentDataDir, "client-kube-proxy.crt"),
 				filepath.Join(agentDataDir, "client-kube-proxy.key"))
+		default:
+			logrus.Fatalf("%s is not a recognized service", component)
 		}
 	}
 
@@ -154,19 +157,11 @@ func rotate(app *cli.Context, cfg *cmds.Server) error {
 			logrus.Infof("Certificate %s is deleted", cert)
 		}
 	}
+	logrus.Infof("Successfully deleted certificates for all services, please restart %s server or agent to rotate certificates", version.Program)
 	return nil
 }
 
 func rotateAllCerts(runtime *config.ControlRuntime, dirs ...string) error {
-	valueOfRuntime := reflect.ValueOf(runtime)
-	typeOfRuntime := valueOfRuntime.Type()
-	for i := 0; i < valueOfRuntime.NumField(); i++ {
-		if reflect.TypeOf(valueOfRuntime.Field(i).Interface()) == "string" ||
-			strings.Contains(typeOfRuntime.Field(i).Name, "CA") ||
-			strings.Contains(typeOfRuntime.Field(i).Name, "IPSECKey") {
-
-		}
-	}
 	for _, dir := range dirs {
 		err := filepath.Walk(dir,
 			func(path string, info os.FileInfo, err error) error {
@@ -176,7 +171,8 @@ func rotateAllCerts(runtime *config.ControlRuntime, dirs ...string) error {
 				if (strings.HasSuffix(path, ".crt") || strings.HasSuffix(path, "key")) &&
 					!strings.Contains(path, "-ca") &&
 					!strings.Contains(path, "service.key") &&
-					!strings.Contains(path, "temporary-certs") {
+					!strings.Contains(path, "temporary-certs") &&
+					!strings.Contains(path, "containerd") {
 					if err := os.Remove(path); err == nil {
 						logrus.Infof("Certificate %s is deleted", path)
 					}
@@ -188,5 +184,6 @@ func rotateAllCerts(runtime *config.ControlRuntime, dirs ...string) error {
 			return err
 		}
 	}
+	logrus.Infof("Successfully deleted certificates for all services, please restart %s server or agent to rotate certificates", version.Program)
 	return nil
 }
