@@ -615,40 +615,12 @@ EOF
         if [ "${rpm_installer}" = "yum" ] && [ -x /usr/bin/dnf ]; then
             rpm_installer=dnf
         fi
-	    if rpm -q --quiet k3s-selinux; then 
-            # remove k3s-selinux module before upgrade to allow container-selinux to upgrade safely
-            if check_available_upgrades container-selinux ${3} && check_available_upgrades k3s-selinux ${3}; then
-                MODULE_PRIORITY=$($SUDO semodule --list=full | grep k3s | cut -f1 -d" ")
-                if [ -n "${MODULE_PRIORITY}" ]; then
-                    $SUDO semodule -X $MODULE_PRIORITY -r k3s || true
-                fi
-            fi
-        fi
         # shellcheck disable=SC2086
         $SUDO ${rpm_installer} install -y "k3s-selinux"
     fi
     return
 }
 
-check_available_upgrades() {
-    set +e
-    case ${2} in
-        sle)
-            available_upgrades=$($SUDO zypper -q -t -s 11 se -s -u --type package $1 | tail -n 1 | grep -v "No matching" | awk '{print $3}')
-            ;;
-        coreos)
-            # currently rpm-ostree does not support search functionality https://github.com/coreos/rpm-ostree/issues/1877
-            ;;
-        *)
-            available_upgrades=$($SUDO yum -q --refresh list $1 --upgrades | tail -n 1 | awk '{print $2}')
-            ;;
-    esac
-    set -e
-    if [ -n "${available_upgrades}" ]; then
-        return 0
-    fi
-    return 1
-}
 # --- download and verify k3s ---
 download_and_verify() {
     if can_skip_download_binary; then
